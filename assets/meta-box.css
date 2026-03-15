@@ -1,0 +1,243 @@
+/**
+ * PerryLabs SEO + AEO — Meta Box Styles
+ *
+ * Clean, minimal styling for the SEO meta box in the post editor.
+ * No bloat. No traffic lights. No SEO scores.
+ */
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Meta box container
+ * ────────────────────────────────────────────────────────────────────── */
+
+.perrylabs-seo-metabox {
+	padding: 4px 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Google Search Preview
+ * ────────────────────────────────────────────────────────────────────── */
+
+.perrylabs-seo-preview {
+	background: #f9f9f9;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 16px 20px;
+	margin-bottom: 20px;
+}
+
+.perrylabs-seo-preview__label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: #888;
+	margin: 0 0 10px 0;
+}
+
+.perrylabs-seo-preview__result {
+	font-family: Arial, sans-serif;
+}
+
+.perrylabs-seo-preview__title {
+	font-size: 20px;
+	line-height: 1.3;
+	color: #1a0dab;
+	margin-bottom: 2px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 600px;
+}
+
+.perrylabs-seo-preview__url {
+	font-size: 14px;
+	line-height: 1.3;
+	color: #006621;
+	margin-bottom: 4px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 600px;
+}
+
+.perrylabs-seo-preview__desc {
+	font-size: 13px;
+	line-height: 1.58;
+	color: #545454;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	max-width: 600px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Fields
+ * ────────────────────────────────────────────────────────────────────── */
+
+.perrylabs-seo-field {
+	margin-bottom: 16px;
+}
+
+.perrylabs-seo-field label {
+	display: block;
+	font-weight: 600;
+	font-size: 13px;
+	margin-bottom: 6px;
+	color: #1d2327;
+}
+
+.perrylabs-seo-field input[type="text"],
+.perrylabs-seo-field input[type="url"],
+.perrylabs-seo-field textarea {
+	width: 100%;
+	max-width: 100%;
+}
+
+.perrylabs-seo-field textarea {
+	resize: vertical;
+	min-height: 60px;
+}
+
+.perrylabs-seo-field .description {
+	margin-top: 4px;
+	font-size: 12px;
+	color: #888;
+	font-style: normal;
+}
+
+/* Inline fields (checkboxes side by side) */
+.perrylabs-seo-field--inline {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 20px;
+	align-items: center;
+}
+
+.perrylabs-seo-field--inline label {
+	font-weight: 400;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 0;
+}
+
+.perrylabs-seo-field--inline .description {
+	flex-basis: 100%;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Character counter
+ * ────────────────────────────────────────────────────────────────────── */
+
+.perrylabs-seo-counter {
+	height: 4px;
+	background: #e0e0e0;
+	border-radius: 2px;
+	margin-top: 6px;
+	overflow: hidden;
+}
+
+.perrylabs-seo-counter__bar {
+	display: block;
+	height: 100%;
+	border-radius: 2px;
+	transition: width 0.2s ease, background-color 0.2s ease;
+	width: 0;
+}
+
+.perrylabs-seo-counter__text {
+	display: block;
+	font-size: 12px;
+	margin-top: 4px;
+	color: #888;
+	text-align: right;
+}
+
+/* Counter colors */
+.perrylabs-seo-counter__text--good {
+	color: #00a32a;
+}
+.perrylabs-seo-counter__text--warning {
+	color: #dba617;
+}
+.perrylabs-seo-counter__text--danger {
+	color: #d63638;
+}
+
+.perrylabs-seo-counter__bar--good {
+	background-color: #00a32a;
+}
+.perrylabs-seo-counter__bar--warning {
+	background-color: #dba617;
+}
+.perrylabs-seo-counter__bar--danger {
+	background-color: #d63638;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Image field
+ * ────────────────────────────────────────────────────────────────────── */
+
+.perrylabs-seo-image-field {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: flex-start;
+}
+
+.perrylabs-seo-image-field input[type="url"] {
+	flex: 1;
+	min-width: 200px;
+}
+
+.perrylabs-seo-image-field .button {
+	flex-shrink: 0;
+}
+
+.perrylabs-seo-image-preview {
+	flex-basis: 100%;
+}
+
+.perrylabs-seo-image-preview img {
+	border-radius: 4px;
+	border: 1px solid #e0e0e0;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Breadcrumbs (frontend)
+ * ────────────────────────────────────────────────────────────────────── */
+
+.perrylabs-seo-breadcrumbs__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0;
+	font-size: 14px;
+}
+
+.perrylabs-seo-breadcrumbs__item {
+	display: inline-flex;
+	align-items: center;
+}
+
+.perrylabs-seo-breadcrumbs__link {
+	text-decoration: none;
+	color: #1a0dab;
+}
+
+.perrylabs-seo-breadcrumbs__link:hover {
+	text-decoration: underline;
+}
+
+.perrylabs-seo-breadcrumbs__current {
+	color: #545454;
+}
+
+.perrylabs-seo-breadcrumbs__sep {
+	margin: 0 8px;
+	color: #999;
+}
