@@ -203,5 +203,18 @@
 
 			frame.open();
 		});
+
+		// Alternate URLs repeater.
+		$('#perrylabs-seo-add-alternate').on('click', function () {
+			var row = '<div class="perrylabs-seo-alternate-row" style="display:flex;gap:6px;margin-bottom:6px;">' +
+				'<input type="url" name="_perrylabs_seo_alternate_urls[]" value="" class="widefat" placeholder="https://" />' +
+				'<button type="button" class="button perrylabs-seo-remove-alternate">&times;</button>' +
+				'</div>';
+			$('#perrylabs-seo-alternate-urls').append(row);
+		});
+
+		$(document).on('click', '.perrylabs-seo-remove-alternate', function () {
+			$(this).closest('.perrylabs-seo-alternate-row').remove();
+		});
 	});
 })(jQuery);

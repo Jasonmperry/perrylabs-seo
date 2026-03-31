@@ -72,15 +72,35 @@ class PerryLabs_SEO_Meta_Tags {
 	 * ────────────────────────────────────────────────────────────── */
 
 	public function output_meta_tags(): void {
-		echo "\n<!-- PerryLabs SEO + AEO -->\n";
+		echo "\n<!-- SEO + AEO -->\n";
 
+		$this->output_webmaster_verification();
 		$this->output_description();
 		$this->output_canonical();
 		$this->output_robots();
 		$this->output_open_graph();
 		$this->output_twitter_card();
 
-		echo "<!-- /PerryLabs SEO + AEO -->\n\n";
+		echo "<!-- /SEO + AEO -->\n\n";
+	}
+
+	/**
+	 * Output webmaster verification meta tags.
+	 */
+	private function output_webmaster_verification(): void {
+		$verifications = array(
+			'google_verification'    => 'google-site-verification',
+			'bing_verification'      => 'msvalidate.01',
+			'pinterest_verification' => 'p:domain_verify',
+			'yandex_verification'    => 'yandex-verification',
+		);
+
+		foreach ( $verifications as $option_key => $meta_name ) {
+			$value = perrylabs_seo_get_option( $option_key, '' );
+			if ( ! empty( $value ) ) {
+				printf( '<meta name="%s" content="%s" />' . "\n", esc_attr( $meta_name ), esc_attr( $value ) );
+			}
+		}
 	}
 
 	/* ──────────────────────────────────────────────────────────────
@@ -133,6 +153,19 @@ class PerryLabs_SEO_Meta_Tags {
 		$canonical = $this->get_canonical();
 		if ( $canonical ) {
 			printf( '<link rel="canonical" href="%s" />' . "\n", esc_url( $canonical ) );
+		}
+
+		// Output alternate URLs for ported/mirrored content.
+		if ( is_singular() ) {
+			$post = get_queried_object();
+			if ( $post ) {
+				$alternates = get_post_meta( $post->ID, '_perrylabs_seo_alternate_urls', true );
+				if ( is_array( $alternates ) ) {
+					foreach ( $alternates as $alt_url ) {
+						printf( '<link rel="alternate" href="%s" />' . "\n", esc_url( $alt_url ) );
+					}
+				}
+			}
 		}
 	}
 

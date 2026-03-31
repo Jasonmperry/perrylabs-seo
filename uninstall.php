@@ -18,6 +18,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
  * ────────────────────────────────────────────────────────────────────── */
 
 delete_option( 'perrylabs_seo_options' );
+delete_transient( 'perrylabs_seo_robots_txt' );
 
 /* ──────────────────────────────────────────────────────────────────────
  * Delete all per-post SEO meta fields
@@ -32,6 +33,8 @@ $meta_keys = array(
 	'_perrylabs_seo_noindex',
 	'_perrylabs_seo_nofollow',
 	'_perrylabs_seo_social_image',
+	'_perrylabs_seo_schema_type',
+	'_perrylabs_seo_alternate_urls',
 );
 
 foreach ( $meta_keys as $key ) {

@@ -29,6 +29,22 @@ class PerryLabs_SEO_Meta_Box {
 		'_perrylabs_seo_noindex',
 		'_perrylabs_seo_nofollow',
 		'_perrylabs_seo_social_image',
+		'_perrylabs_seo_schema_type',
+		'_perrylabs_seo_alternate_urls',
+	);
+
+	/** @var array Schema type options for the per-post dropdown. */
+	private const SCHEMA_TYPES = array(
+		''              => 'Auto (from type map)',
+		'Article'       => 'Article',
+		'WebPage'       => 'WebPage',
+		'FAQPage'       => 'FAQ Page',
+		'HowTo'        => 'How-To',
+		'VideoObject'  => 'Video',
+		'LocalBusiness' => 'Local Business / Contact',
+		'Event'         => 'Event',
+		'Person'        => 'Person',
+		'none'          => 'None (disable schema)',
 	);
 
 	public function __construct() {
@@ -82,16 +98,16 @@ class PerryLabs_SEO_Meta_Box {
 
 		wp_enqueue_style(
 			'perrylabs-seo-meta-box',
-			JEYSEO_PLUGIN_URL . 'assets/meta-box.css',
+			PL_SEO_PLUGIN_URL . 'assets/meta-box.css',
 			array(),
-			JEYSEO_VERSION
+			PL_SEO_VERSION
 		);
 
 		wp_enqueue_script(
 			'perrylabs-seo-meta-box',
-			JEYSEO_PLUGIN_URL . 'assets/meta-box.js',
+			PL_SEO_PLUGIN_URL . 'assets/meta-box.js',
 			array( 'jquery' ),
-			JEYSEO_VERSION,
+			PL_SEO_VERSION,
 			true
 		);
 
@@ -116,12 +132,15 @@ class PerryLabs_SEO_Meta_Box {
 	public function render_meta_box( \WP_Post $post ): void {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
-		$title        = get_post_meta( $post->ID, '_perrylabs_seo_title', true );
-		$description  = get_post_meta( $post->ID, '_perrylabs_seo_description', true );
-		$canonical    = get_post_meta( $post->ID, '_perrylabs_seo_canonical', true );
-		$noindex      = (bool) get_post_meta( $post->ID, '_perrylabs_seo_noindex', true );
-		$nofollow     = (bool) get_post_meta( $post->ID, '_perrylabs_seo_nofollow', true );
-		$social_image = get_post_meta( $post->ID, '_perrylabs_seo_social_image', true );
+		$title          = get_post_meta( $post->ID, '_perrylabs_seo_title', true );
+		$description    = get_post_meta( $post->ID, '_perrylabs_seo_description', true );
+		$canonical      = get_post_meta( $post->ID, '_perrylabs_seo_canonical', true );
+		$noindex        = (bool) get_post_meta( $post->ID, '_perrylabs_seo_noindex', true );
+		$nofollow       = (bool) get_post_meta( $post->ID, '_perrylabs_seo_nofollow', true );
+		$social_image   = get_post_meta( $post->ID, '_perrylabs_seo_social_image', true );
+		$schema_type    = get_post_meta( $post->ID, '_perrylabs_seo_schema_type', true );
+		$alternate_urls = get_post_meta( $post->ID, '_perrylabs_seo_alternate_urls', true );
+		$alternate_urls = is_array( $alternate_urls ) ? $alternate_urls : array();
 
 		$separator = perrylabs_seo_get_option( 'title_separator', '|' );
 		$site_name = get_bloginfo( 'name' );
@@ -240,6 +259,36 @@ class PerryLabs_SEO_Meta_Box {
 				<p class="description"><?php esc_html_e( 'Override the image used for Open Graph and Twitter Cards. Recommended: 1200x630px.', 'perrylabs-seo' ); ?></p>
 			</div>
 
+			<!-- Schema Type Override -->
+			<div class="perrylabs-seo-field">
+				<label for="perrylabs-seo-schema-type"><?php esc_html_e( 'Schema Type', 'perrylabs-seo' ); ?></label>
+				<select id="perrylabs-seo-schema-type" name="_perrylabs_seo_schema_type" style="width:100%;max-width:300px;">
+					<?php foreach ( self::SCHEMA_TYPES as $value => $label ) : ?>
+						<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $schema_type, $value ); ?>>
+							<?php echo esc_html( $label ); ?>
+						</option>
+					<?php endforeach; ?>
+				</select>
+				<p class="description"><?php esc_html_e( 'Override the JSON-LD structured data type for this page. "Auto" uses the post type mapping.', 'perrylabs-seo' ); ?></p>
+			</div>
+
+			<!-- Alternate URLs -->
+			<div class="perrylabs-seo-field">
+				<label><?php esc_html_e( 'Alternate URLs', 'perrylabs-seo' ); ?></label>
+				<div id="perrylabs-seo-alternate-urls">
+					<?php foreach ( $alternate_urls as $i => $url ) : ?>
+						<div class="perrylabs-seo-alternate-row" style="display:flex;gap:6px;margin-bottom:6px;">
+							<input type="url" name="_perrylabs_seo_alternate_urls[]" value="<?php echo esc_url( $url ); ?>" class="widefat" placeholder="https://" />
+							<button type="button" class="button perrylabs-seo-remove-alternate">&times;</button>
+						</div>
+					<?php endforeach; ?>
+				</div>
+				<button type="button" class="button" id="perrylabs-seo-add-alternate">
+					<?php esc_html_e( '+ Add Alternate URL', 'perrylabs-seo' ); ?>
+				</button>
+				<p class="description"><?php esc_html_e( 'Additional URLs where this content exists (outputs as rel="alternate" link tags). Useful for content ported across domains.', 'perrylabs-seo' ); ?></p>
+			</div>
+
 		</div>
 
 		<!-- Hidden data for JS -->
@@ -291,6 +340,30 @@ class PerryLabs_SEO_Meta_Box {
 
 		$social_image = esc_url_raw( $_POST['_perrylabs_seo_social_image'] ?? '' );
 		$this->update_or_delete_meta( $post_id, '_perrylabs_seo_social_image', $social_image );
+
+		// Schema type override.
+		$schema_type = sanitize_text_field( $_POST['_perrylabs_seo_schema_type'] ?? '' );
+		$valid_types = array_keys( self::SCHEMA_TYPES );
+		if ( ! in_array( $schema_type, $valid_types, true ) ) {
+			$schema_type = '';
+		}
+		$this->update_or_delete_meta( $post_id, '_perrylabs_seo_schema_type', $schema_type );
+
+		// Alternate URLs.
+		$alternate_urls = array();
+		if ( ! empty( $_POST['_perrylabs_seo_alternate_urls'] ) && is_array( $_POST['_perrylabs_seo_alternate_urls'] ) ) {
+			foreach ( $_POST['_perrylabs_seo_alternate_urls'] as $url ) {
+				$url = esc_url_raw( trim( $url ) );
+				if ( $url ) {
+					$alternate_urls[] = $url;
+				}
+			}
+		}
+		if ( ! empty( $alternate_urls ) ) {
+			update_post_meta( $post_id, '_perrylabs_seo_alternate_urls', $alternate_urls );
+		} else {
+			delete_post_meta( $post_id, '_perrylabs_seo_alternate_urls' );
+		}
 	}
 
 	/**

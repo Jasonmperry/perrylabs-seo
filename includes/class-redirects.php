@@ -19,8 +19,8 @@ class PerryLabs_SEO_Redirects {
 	/** @var string 404 log table name (without prefix). */
 	private const TABLE_404_LOG = 'plseo_404_log';
 
-	/** @var string Admin page slug. */
-	private const PAGE_SLUG = 'perrylabs-seo-redirects';
+	/** @var string Parent settings page slug. */
+	private const PAGE_SLUG = 'perrylabs-seo';
 
 	/** @var string Nonce action for redirect forms. */
 	private const NONCE_ACTION = 'plseo_redirects_nonce';
@@ -30,9 +30,8 @@ class PerryLabs_SEO_Redirects {
 		add_action( 'template_redirect', array( $this, 'maybe_redirect' ), 1 );
 		add_action( 'template_redirect', array( $this, 'log_404' ), 2 );
 
-		// Admin menu.
+		// Admin actions (no separate menu — embedded in settings page).
 		if ( is_admin() ) {
-			add_action( 'admin_menu', array( $this, 'add_admin_page' ) );
 			add_action( 'admin_init', array( $this, 'handle_admin_actions' ) );
 		}
 	}
@@ -208,25 +207,13 @@ class PerryLabs_SEO_Redirects {
 	}
 
 	/* ──────────────────────────────────────────────────────────────
-	 * Admin Menu
-	 * ────────────────────────────────────────────────────────────── */
-
-	public function add_admin_page(): void {
-		add_options_page(
-			__( 'Redirects — PerryLabs SEO', 'perrylabs-seo' ),
-			__( 'SEO Redirects', 'perrylabs-seo' ),
-			'manage_options',
-			self::PAGE_SLUG,
-			array( $this, 'render_admin_page' )
-		);
-	}
-
-	/* ──────────────────────────────────────────────────────────────
 	 * Admin Actions (Add, Edit, Delete, Import, Export, Delete 404)
 	 * ────────────────────────────────────────────────────────────── */
 
 	public function handle_admin_actions(): void {
-		if ( ! isset( $_GET['page'] ) || $_GET['page'] !== self::PAGE_SLUG ) {
+		$page = $_GET['page'] ?? '';
+		$tab  = $_GET['tab'] ?? '';
+		if ( $page !== self::PAGE_SLUG || $tab !== 'redirects' ) {
 			return;
 		}
 
@@ -411,7 +398,8 @@ class PerryLabs_SEO_Redirects {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'page'          => self::PAGE_SLUG,
+					'page'           => self::PAGE_SLUG,
+					'tab'            => 'redirects',
 					'prefill_source' => rawurlencode( $entry->url ),
 				),
 				admin_url( 'options-general.php' )
@@ -512,38 +500,35 @@ class PerryLabs_SEO_Redirects {
 	 * Admin Page Rendering
 	 * ────────────────────────────────────────────────────────────── */
 
-	public function render_admin_page(): void {
+	/**
+	 * Render the redirects tab content (called from Settings page).
+	 */
+	public function render_tab_content(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
-		$active_tab = isset( $_GET['tab'] ) && $_GET['tab'] === 'log' ? 'log' : 'redirects';
+		$sub_tab = isset( $_GET['sub'] ) && $_GET['sub'] === 'log' ? 'log' : 'rules';
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'Redirects — PerryLabs SEO', 'perrylabs-seo' ); ?></h1>
+		<?php $this->render_notices(); ?>
 
-			<?php $this->render_notices(); ?>
-
-			<h2 class="nav-tab-wrapper">
-				<a href="<?php echo esc_url( add_query_arg( 'tab', 'redirects', $this->admin_page_url() ) ); ?>"
-				   class="nav-tab <?php echo $active_tab === 'redirects' ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Redirects', 'perrylabs-seo' ); ?>
-				</a>
-				<a href="<?php echo esc_url( add_query_arg( 'tab', 'log', $this->admin_page_url() ) ); ?>"
-				   class="nav-tab <?php echo $active_tab === 'log' ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( '404 Log', 'perrylabs-seo' ); ?>
-				</a>
-			</h2>
-
-			<?php
-			if ( $active_tab === 'log' ) {
-				$this->render_404_log_tab();
-			} else {
-				$this->render_redirects_tab();
-			}
-			?>
+		<div class="plseo-sub-tabs">
+			<a href="<?php echo esc_url( $this->admin_page_url() ); ?>"
+			   class="plseo-sub-tab <?php echo $sub_tab === 'rules' ? 'active' : ''; ?>">
+				<?php esc_html_e( 'Redirect Rules', 'perrylabs-seo' ); ?>
+			</a>
+			<a href="<?php echo esc_url( add_query_arg( 'sub', 'log', $this->admin_page_url() ) ); ?>"
+			   class="plseo-sub-tab <?php echo $sub_tab === 'log' ? 'active' : ''; ?>">
+				<?php esc_html_e( '404 Log', 'perrylabs-seo' ); ?>
+			</a>
 		</div>
+
 		<?php
+		if ( $sub_tab === 'log' ) {
+			$this->render_404_log_tab();
+		} else {
+			$this->render_redirects_tab();
+		}
 	}
 
 	private function render_notices(): void {
@@ -793,14 +778,14 @@ class PerryLabs_SEO_Redirects {
 							<td><?php echo esc_html( number_format_i18n( $entry->hits ) ); ?></td>
 							<td><?php echo esc_html( $entry->last_hit ); ?></td>
 							<td>
-								<form method="post" action="<?php echo esc_url( add_query_arg( 'tab', 'redirects', $this->admin_page_url() ) ); ?>" style="display:inline;">
+								<form method="post" action="<?php echo esc_url( $this->admin_page_url() ); ?>" style="display:inline;">
 									<?php wp_nonce_field( self::NONCE_ACTION ); ?>
 									<input type="hidden" name="log_id" value="<?php echo esc_attr( $entry->id ); ?>" />
 									<button type="submit" name="plseo_redirect_from_404" class="button button-small">
 										<?php esc_html_e( 'Create Redirect', 'perrylabs-seo' ); ?>
 									</button>
 								</form>
-								<form method="post" action="<?php echo esc_url( add_query_arg( 'tab', 'log', $this->admin_page_url() ) ); ?>" style="display:inline;">
+								<form method="post" action="<?php echo esc_url( add_query_arg( 'sub', 'log', $this->admin_page_url() ) ); ?>" style="display:inline;">
 									<?php wp_nonce_field( self::NONCE_ACTION ); ?>
 									<input type="hidden" name="log_id" value="<?php echo esc_attr( $entry->id ); ?>" />
 									<button type="submit" name="plseo_delete_404" class="button button-small button-link-delete"
@@ -820,7 +805,7 @@ class PerryLabs_SEO_Redirects {
 				echo '<div class="tablenav"><div class="tablenav-pages">';
 				echo wp_kses_post(
 					paginate_links( array(
-						'base'    => add_query_arg( array( 'tab' => 'log', 'paged' => '%#%' ), $this->admin_page_url() ),
+						'base'    => add_query_arg( array( 'sub' => 'log', 'paged' => '%#%' ), $this->admin_page_url() ),
 						'format'  => '',
 						'current' => $current_page,
 						'total'   => $total_pages,
@@ -865,24 +850,23 @@ class PerryLabs_SEO_Redirects {
 	 * Get the base admin page URL.
 	 */
 	private function admin_page_url(): string {
-		return admin_url( 'options-general.php?page=' . self::PAGE_SLUG );
+		return admin_url( 'options-general.php?page=' . self::PAGE_SLUG . '&tab=redirects' );
 	}
 
 	/**
 	 * Redirect back to the admin page with a status message.
 	 */
-	private function admin_redirect( string $status, string $message, string $tab = 'redirects' ): void {
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page'        => self::PAGE_SLUG,
-					'tab'         => $tab,
-					'plseo_status' => $status,
-					'plseo_msg'   => rawurlencode( $message ),
-				),
-				admin_url( 'options-general.php' )
-			)
+	private function admin_redirect( string $status, string $message, string $sub = '' ): void {
+		$args = array(
+			'page'         => self::PAGE_SLUG,
+			'tab'          => 'redirects',
+			'plseo_status' => $status,
+			'plseo_msg'    => rawurlencode( $message ),
 		);
+		if ( $sub ) {
+			$args['sub'] = $sub;
+		}
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'options-general.php' ) ) );
 		exit;
 	}
 }

@@ -265,14 +265,30 @@ class PerryLabs_SEO_Sitemap {
 	 * ────────────────────────────────────────────────────────────── */
 
 	private function get_sitemap_post_types(): array {
-		$configured = perrylabs_seo_get_option( 'sitemap_post_types', array( 'post', 'page', 'biobuzz_news', 'biobuzz_event', 'biobuzz_contributor' ) );
+		$configured = perrylabs_seo_get_option( 'sitemap_post_types', array( 'post', 'page' ) );
+
+		/**
+		 * Filter the post types included in the XML sitemap.
+		 *
+		 * @param string[] $post_types Array of post type slugs.
+		 */
+		$configured = apply_filters( 'perrylabs_seo_sitemap_post_types', $configured );
+
 		return array_filter( $configured, function ( $pt ) {
 			return post_type_exists( $pt );
 		} );
 	}
 
 	private function get_sitemap_taxonomies(): array {
-		$configured = perrylabs_seo_get_option( 'sitemap_taxonomies', array( 'category', 'post_tag', 'biobuzz_region', 'biobuzz_article_cat', 'biobuzz_event_cat' ) );
+		$configured = perrylabs_seo_get_option( 'sitemap_taxonomies', array( 'category', 'post_tag' ) );
+
+		/**
+		 * Filter the taxonomies included in the XML sitemap.
+		 *
+		 * @param string[] $taxonomies Array of taxonomy slugs.
+		 */
+		$configured = apply_filters( 'perrylabs_seo_sitemap_taxonomies', $configured );
+
 		return array_filter( $configured, function ( $tax ) {
 			return taxonomy_exists( $tax );
 		} );

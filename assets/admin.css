@@ -1,0 +1,891 @@
+/**
+ * PerryLabs SEO - Admin Settings Stylesheet
+ *
+ * Clean, professional styling for the plugin settings page.
+ * Follows WordPress admin design conventions.
+ */
+
+/* =========================================================================
+   Layout & Page Wrapper
+   ========================================================================= */
+
+.wrap.plseo-settings-wrap {
+    max-width: 1200px;
+    margin: 10px 20px 0 2px;
+}
+
+.wrap.plseo-settings-wrap h1 {
+    font-size: 23px;
+    font-weight: 400;
+    margin: 0 0 16px;
+    padding: 9px 0 4px;
+    line-height: 1.3;
+}
+
+/* =========================================================================
+   Tab Navigation
+   ========================================================================= */
+
+.plseo-settings-wrap .nav-tab-wrapper {
+    border-bottom: 1px solid #c3c4c7;
+    margin-bottom: 0;
+    padding-top: 0;
+}
+
+.plseo-settings-wrap .nav-tab {
+    float: left;
+    border: 1px solid #c3c4c7;
+    border-bottom: none;
+    margin-left: 0.5em;
+    padding: 5px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.71428571;
+    background: #dcdcde;
+    color: #50575e;
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: 3px 3px 0 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.plseo-settings-wrap .nav-tab:first-child {
+    margin-left: 0;
+}
+
+.plseo-settings-wrap .nav-tab:hover,
+.plseo-settings-wrap .nav-tab:focus {
+    background: #fff;
+    color: #135e96;
+}
+
+.plseo-settings-wrap .nav-tab-active,
+.plseo-settings-wrap .nav-tab-active:hover,
+.plseo-settings-wrap .nav-tab-active:focus {
+    background: #fff;
+    border-bottom: 1px solid #fff;
+    margin-bottom: -1px;
+    color: #1d2327;
+}
+
+/* =========================================================================
+   Sub-tabs (Secondary Navigation)
+   ========================================================================= */
+
+.plseo-sub-tabs {
+    display: flex;
+    gap: 0;
+    background: #f6f7f7;
+    border-bottom: 1px solid #dcdcde;
+    padding: 0 16px;
+    margin: 0;
+}
+
+.plseo-sub-tabs a {
+    display: inline-block;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #50575e;
+    text-decoration: none;
+    border-bottom: 3px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.plseo-sub-tabs a:hover,
+.plseo-sub-tabs a:focus {
+    color: #135e96;
+    border-bottom-color: #c3c4c7;
+}
+
+.plseo-sub-tabs a.active,
+.plseo-sub-tabs a.current {
+    color: #1d2327;
+    border-bottom-color: #0073aa;
+}
+
+/* =========================================================================
+   Tab Content Area
+   ========================================================================= */
+
+.plseo-tab-content {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-top: none;
+    padding: 24px;
+    min-height: 300px;
+}
+
+/* =========================================================================
+   Cards
+   ========================================================================= */
+
+.plseo-card {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.plseo-card:last-child {
+    margin-bottom: 0;
+}
+
+.plseo-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1d2327;
+    margin: 0 0 14px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid #f0f0f1;
+    line-height: 1.4;
+}
+
+.plseo-card h3 .dashicons {
+    margin-right: 6px;
+    color: #0073aa;
+    vertical-align: text-bottom;
+}
+
+/* Nested cards inside tab content get a slightly different background */
+.plseo-tab-content .plseo-card {
+    background: #f9f9f9;
+}
+
+/* =========================================================================
+   Info / Help Boxes
+   ========================================================================= */
+
+.plseo-info-box {
+    background: #f0f6fc;
+    border: 1px solid #c5d9ed;
+    border-left: 4px solid #0073aa;
+    border-radius: 2px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #1d2327;
+}
+
+.plseo-info-box p {
+    margin: 0 0 8px;
+}
+
+.plseo-info-box p:last-child {
+    margin-bottom: 0;
+}
+
+.plseo-info-box code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.plseo-info-box a {
+    color: #0073aa;
+    text-decoration: underline;
+}
+
+.plseo-info-box a:hover {
+    color: #005177;
+}
+
+/* Warning variant */
+.plseo-info-box.plseo-info-box--warning {
+    background: #fcf9e8;
+    border-color: #dba617;
+    border-left-color: #dba617;
+}
+
+/* Error variant */
+.plseo-info-box.plseo-info-box--error {
+    background: #fcf0f1;
+    border-color: #d63638;
+    border-left-color: #d63638;
+}
+
+/* =========================================================================
+   Status Indicators
+   ========================================================================= */
+
+.plseo-status-good,
+.plseo-status-warning,
+.plseo-status-error {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 12px;
+    line-height: 1.5;
+}
+
+.plseo-status-good {
+    background: #edfaef;
+    color: #00a32a;
+    border: 1px solid #b8e6bf;
+}
+
+.plseo-status-good::before {
+    content: "\f147";
+    font-family: dashicons;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.plseo-status-warning {
+    background: #fcf9e8;
+    color: #996800;
+    border: 1px solid #e2d07d;
+}
+
+.plseo-status-warning::before {
+    content: "\f227";
+    font-family: dashicons;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.plseo-status-error {
+    background: #fcf0f1;
+    color: #d63638;
+    border: 1px solid #f0b8b8;
+}
+
+.plseo-status-error::before {
+    content: "\f335";
+    font-family: dashicons;
+    font-size: 16px;
+    line-height: 1;
+}
+
+/* =========================================================================
+   Form Table Improvements
+   ========================================================================= */
+
+.plseo-tab-content .form-table {
+    margin-top: 0;
+    border-collapse: collapse;
+}
+
+.plseo-tab-content .form-table th {
+    padding: 16px 10px 16px 0;
+    font-weight: 600;
+    font-size: 13px;
+    color: #1d2327;
+    vertical-align: top;
+    line-height: 1.5;
+    width: 220px;
+}
+
+.plseo-tab-content .form-table td {
+    padding: 12px 10px;
+    vertical-align: top;
+    line-height: 1.5;
+}
+
+.plseo-tab-content .form-table tr {
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.plseo-tab-content .form-table tr:last-child {
+    border-bottom: none;
+}
+
+.plseo-tab-content .form-table input[type="text"],
+.plseo-tab-content .form-table input[type="url"],
+.plseo-tab-content .form-table input[type="email"],
+.plseo-tab-content .form-table input[type="number"],
+.plseo-tab-content .form-table input[type="password"],
+.plseo-tab-content .form-table textarea,
+.plseo-tab-content .form-table select {
+    width: 100%;
+    max-width: 500px;
+    padding: 6px 10px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.07);
+    transition: border-color 0.15s ease;
+}
+
+.plseo-tab-content .form-table input[type="text"]:focus,
+.plseo-tab-content .form-table input[type="url"]:focus,
+.plseo-tab-content .form-table input[type="email"]:focus,
+.plseo-tab-content .form-table input[type="number"]:focus,
+.plseo-tab-content .form-table input[type="password"]:focus,
+.plseo-tab-content .form-table textarea:focus,
+.plseo-tab-content .form-table select:focus {
+    border-color: #0073aa;
+    box-shadow: 0 0 0 1px #0073aa;
+    outline: none;
+}
+
+.plseo-tab-content .form-table textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.plseo-tab-content .form-table input[type="checkbox"] {
+    margin-right: 6px;
+}
+
+/* Description text beneath form fields */
+.plseo-tab-content .form-table .description,
+.plseo-tab-content .form-table p.description {
+    font-size: 12px;
+    font-style: italic;
+    color: #646970;
+    margin: 6px 0 0;
+    line-height: 1.5;
+    max-width: 500px;
+}
+
+.plseo-tab-content .form-table .description code {
+    font-size: 11px;
+    font-style: normal;
+    background: #f0f0f1;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+/* =========================================================================
+   Read-Only / Display Fields
+   ========================================================================= */
+
+.plseo-readonly-field {
+    display: inline-block;
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+    color: #50575e;
+    max-width: 500px;
+    width: 100%;
+    word-break: break-all;
+    line-height: 1.6;
+    user-select: all;
+    cursor: text;
+}
+
+.plseo-readonly-field:hover {
+    border-color: #8c8f94;
+}
+
+/* =========================================================================
+   Link Lists
+   ========================================================================= */
+
+.plseo-link-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.plseo-link-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f1;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.plseo-link-list li:last-child {
+    border-bottom: none;
+}
+
+.plseo-link-list li a {
+    color: #0073aa;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.plseo-link-list li a:hover {
+    color: #005177;
+    text-decoration: underline;
+}
+
+.plseo-link-list li a .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    vertical-align: text-bottom;
+    color: #0073aa;
+}
+
+.plseo-link-list li .description {
+    display: block;
+    font-size: 12px;
+    color: #646970;
+    margin-top: 2px;
+}
+
+/* =========================================================================
+   Preview Links
+   ========================================================================= */
+
+.plseo-preview-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.plseo-preview-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    color: #0073aa;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.plseo-preview-links a:hover,
+.plseo-preview-links a:focus {
+    background: #f0f6fc;
+    border-color: #0073aa;
+    color: #005177;
+}
+
+.plseo-preview-links a .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* =========================================================================
+   Ping Log Table
+   ========================================================================= */
+
+.plseo-ping-log {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 10px;
+}
+
+.plseo-ping-log thead th {
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    padding: 10px 12px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #1d2327;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.plseo-ping-log tbody td {
+    border: 1px solid #dcdcde;
+    padding: 8px 12px;
+    color: #50575e;
+    vertical-align: middle;
+    line-height: 1.5;
+}
+
+.plseo-ping-log tbody tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+.plseo-ping-log tbody tr:hover {
+    background: #f0f6fc;
+}
+
+.plseo-ping-log td code {
+    font-size: 12px;
+    background: #f0f0f1;
+    padding: 1px 5px;
+    border-radius: 3px;
+    word-break: break-all;
+}
+
+.plseo-ping-log .plseo-status-good,
+.plseo-ping-log .plseo-status-error {
+    font-size: 12px;
+    padding: 2px 8px;
+}
+
+/* Empty state */
+.plseo-ping-log .plseo-empty-row td {
+    text-align: center;
+    color: #a7aaad;
+    font-style: italic;
+    padding: 24px 12px;
+}
+
+/* =========================================================================
+   Redirects & 404 Tables
+   ========================================================================= */
+
+.plseo-tab-content .wp-list-table {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.plseo-tab-content .wp-list-table thead th,
+.plseo-tab-content .wp-list-table tfoot th {
+    background: #f6f7f7;
+    font-weight: 600;
+    color: #1d2327;
+    padding: 10px 12px;
+    font-size: 13px;
+}
+
+.plseo-tab-content .wp-list-table thead th {
+    border-bottom: 1px solid #c3c4c7;
+}
+
+.plseo-tab-content .wp-list-table tfoot th {
+    border-top: 1px solid #c3c4c7;
+}
+
+.plseo-tab-content .wp-list-table td {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #50575e;
+    vertical-align: middle;
+}
+
+.plseo-tab-content .wp-list-table tbody tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+.plseo-tab-content .wp-list-table tbody tr:hover {
+    background: #f0f6fc;
+}
+
+.plseo-tab-content .wp-list-table .row-actions {
+    visibility: hidden;
+    padding: 2px 0 0;
+}
+
+.plseo-tab-content .wp-list-table tbody tr:hover .row-actions {
+    visibility: visible;
+}
+
+.plseo-tab-content .wp-list-table .row-actions a {
+    color: #0073aa;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.plseo-tab-content .wp-list-table .row-actions .delete a,
+.plseo-tab-content .wp-list-table .row-actions .trash a {
+    color: #b32d2e;
+}
+
+.plseo-tab-content .wp-list-table .column-url,
+.plseo-tab-content .wp-list-table .column-source,
+.plseo-tab-content .wp-list-table .column-target {
+    max-width: 300px;
+    word-break: break-all;
+}
+
+.plseo-tab-content .wp-list-table .column-hits,
+.plseo-tab-content .wp-list-table .column-code,
+.plseo-tab-content .wp-list-table .column-count {
+    text-align: center;
+    width: 80px;
+}
+
+.plseo-tab-content .wp-list-table .column-date,
+.plseo-tab-content .wp-list-table .column-last_hit {
+    width: 140px;
+    white-space: nowrap;
+}
+
+/* Redirect type badge */
+.plseo-redirect-type {
+    display: inline-block;
+    background: #f0f0f1;
+    border: 1px solid #dcdcde;
+    border-radius: 3px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #50575e;
+    font-family: Consolas, Monaco, monospace;
+}
+
+/* =========================================================================
+   Tablenav / Pagination within Tab Content
+   ========================================================================= */
+
+.plseo-tab-content .tablenav {
+    margin: 12px 0;
+}
+
+.plseo-tab-content .tablenav .tablenav-pages {
+    font-size: 13px;
+}
+
+.plseo-tab-content .search-box {
+    margin-bottom: 12px;
+}
+
+.plseo-tab-content .search-box input[type="search"],
+.plseo-tab-content .search-box input[type="text"] {
+    padding: 4px 8px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+/* =========================================================================
+   Buttons
+   ========================================================================= */
+
+.plseo-tab-content .button {
+    vertical-align: middle;
+}
+
+.plseo-tab-content .button-primary {
+    margin-right: 8px;
+}
+
+.plseo-tab-content .submit {
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f1;
+    margin-top: 8px;
+}
+
+/* =========================================================================
+   Version String
+   ========================================================================= */
+
+.plseo-version {
+    display: block;
+    text-align: right;
+    font-size: 11px;
+    color: #a7aaad;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f1;
+    font-style: italic;
+}
+
+/* =========================================================================
+   Notices Inside Tab Content
+   ========================================================================= */
+
+.plseo-tab-content .notice {
+    margin: 0 0 16px;
+    border-radius: 4px;
+}
+
+/* =========================================================================
+   Toggle / Switch Styling (optional enhancement)
+   ========================================================================= */
+
+.plseo-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #1d2327;
+    cursor: pointer;
+}
+
+/* =========================================================================
+   Code Blocks / Pre
+   ========================================================================= */
+
+.plseo-tab-content pre,
+.plseo-card pre {
+    background: #f0f0f1;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-family: Consolas, Monaco, monospace;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin: 8px 0;
+}
+
+.plseo-tab-content code,
+.plseo-card code {
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* =========================================================================
+   Tools Tab - Action Buttons Grid
+   ========================================================================= */
+
+.plseo-tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.plseo-tool-action {
+    background: #f9f9f9;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 16px;
+}
+
+.plseo-tool-action h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.plseo-tool-action p {
+    font-size: 12px;
+    color: #646970;
+    margin: 0 0 12px;
+    line-height: 1.5;
+}
+
+/* =========================================================================
+   Schema Tab - JSON Preview
+   ========================================================================= */
+
+.plseo-schema-preview {
+    background: #1d2327;
+    color: #50fa7b;
+    border-radius: 4px;
+    padding: 16px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-x: auto;
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 8px 0;
+}
+
+/* =========================================================================
+   Responsive
+   ========================================================================= */
+
+@media screen and (max-width: 782px) {
+    .wrap.plseo-settings-wrap {
+        margin: 10px 10px 0 2px;
+    }
+
+    .plseo-tab-content {
+        padding: 16px;
+    }
+
+    .plseo-card {
+        padding: 14px 16px;
+    }
+
+    .plseo-tab-content .form-table th {
+        width: auto;
+        display: block;
+        padding-bottom: 4px;
+    }
+
+    .plseo-tab-content .form-table td {
+        display: block;
+        padding: 4px 0 12px;
+    }
+
+    .plseo-tab-content .form-table input[type="text"],
+    .plseo-tab-content .form-table input[type="url"],
+    .plseo-tab-content .form-table input[type="email"],
+    .plseo-tab-content .form-table input[type="number"],
+    .plseo-tab-content .form-table input[type="password"],
+    .plseo-tab-content .form-table textarea,
+    .plseo-tab-content .form-table select {
+        max-width: 100%;
+    }
+
+    .plseo-readonly-field {
+        max-width: 100%;
+    }
+
+    .plseo-tab-content .form-table .description,
+    .plseo-tab-content .form-table p.description {
+        max-width: 100%;
+    }
+
+    .plseo-sub-tabs {
+        padding: 0 10px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .plseo-sub-tabs a {
+        padding: 8px 12px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .plseo-preview-links {
+        flex-direction: column;
+    }
+
+    .plseo-preview-links a {
+        justify-content: center;
+    }
+
+    .plseo-tools-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .plseo-settings-wrap .nav-tab {
+        font-size: 12px;
+        padding: 4px 10px;
+        margin-left: 2px;
+    }
+
+    .plseo-tab-content .wp-list-table .column-url,
+    .plseo-tab-content .wp-list-table .column-source,
+    .plseo-tab-content .wp-list-table .column-target {
+        max-width: 160px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .plseo-settings-wrap .nav-tab {
+        font-size: 11px;
+        padding: 3px 7px;
+        margin-left: 1px;
+        margin-bottom: 2px;
+    }
+
+    .plseo-settings-wrap .nav-tab-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .plseo-tab-content {
+        padding: 12px;
+    }
+
+    .plseo-card {
+        padding: 12px;
+    }
+
+    .plseo-status-good,
+    .plseo-status-warning,
+    .plseo-status-error {
+        font-size: 12px;
+        padding: 2px 8px;
+    }
+}
