@@ -49,11 +49,14 @@ final class PLSEO_Options {
 			'title_separator'        => '|',
 			'default_description'    => '',
 			'site_language'          => '',
-			'google_verification'    => '',
-			'bing_verification'      => '',
-			'pinterest_verification' => '',
-			'yandex_verification'    => '',
-			'baidu_verification'     => '',
+			'google_verification'      => '',
+			'bing_verification'        => '',
+			'pinterest_verification'   => '',
+			'yandex_verification'      => '',
+			'baidu_verification'       => '',
+			'apple_news_verification'  => '',
+			'cloudflare_verification'  => '',
+			'norton_verification'      => '',
 
 			// ── Social ────────────────────────────────────────────
 			'twitter_handle'         => '',
@@ -130,6 +133,31 @@ final class PLSEO_Options {
 			// ── Image SEO ──────────────────────────────────────────
 			'image_auto_alt'             => true,
 			'image_optimize_upload_slug' => false,
+
+			// ── Core Web Vitals ────────────────────────────────────
+			'perf_resource_hints'    => true,
+			'perf_lazy_load'         => true,
+			'perf_fetchpriority'     => true,
+			'perf_image_dimensions'  => true,
+
+			// ── Analytics ──────────────────────────────────────────
+			'analytics_ga4_id'           => '',
+			'analytics_gtm_id'           => '',
+			'analytics_plausible_domain' => '',
+			'analytics_fathom_site_id'   => '',
+			'analytics_clarity_id'       => '',
+			'analytics_track_editors'    => false,
+
+			// ── Canonical enforcement ──────────────────────────────
+			'canon_force_https'      => false,
+			'canon_www_mode'         => 'off',
+			'canon_trailing_slash'   => 'off',
+
+			// ── Reading time / TOC ─────────────────────────────────
+			'auto_toc_enabled'       => false,
+
+			// ── Site search log ────────────────────────────────────
+			'search_log_retention_days' => 90,
 
 			// ── Advanced ──────────────────────────────────────────
 			'noindex_archives'       => false,

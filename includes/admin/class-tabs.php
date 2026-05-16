@@ -26,13 +26,15 @@ final class PLSEO_Tabs {
 	 */
 	public static function tabs(): array {
 		return array(
-			'general'  => __( 'General', 'perrylabs-seo' ),
-			'social'   => __( 'Social', 'perrylabs-seo' ),
-			'sitemap'  => __( 'Sitemap', 'perrylabs-seo' ),
-			'schema'   => __( 'Schema', 'perrylabs-seo' ),
-			'aeo'      => __( 'AEO', 'perrylabs-seo' ),
-			'tools'    => __( 'Tools', 'perrylabs-seo' ),
-			'advanced' => __( 'Advanced', 'perrylabs-seo' ),
+			'general'   => __( 'General', 'perrylabs-seo' ),
+			'social'    => __( 'Social', 'perrylabs-seo' ),
+			'sitemap'   => __( 'Sitemap', 'perrylabs-seo' ),
+			'schema'    => __( 'Schema', 'perrylabs-seo' ),
+			'aeo'       => __( 'AEO', 'perrylabs-seo' ),
+			'analytics' => __( 'Analytics', 'perrylabs-seo' ),
+			'perf'      => __( 'Performance', 'perrylabs-seo' ),
+			'tools'     => __( 'Tools', 'perrylabs-seo' ),
+			'advanced'  => __( 'Advanced', 'perrylabs-seo' ),
 		);
 	}
 
@@ -42,6 +44,8 @@ final class PLSEO_Tabs {
 		self::register_sitemap();
 		self::register_schema();
 		self::register_aeo();
+		self::register_analytics();
+		self::register_perf();
 		self::register_tools();
 		self::register_advanced();
 	}
@@ -88,11 +92,14 @@ final class PLSEO_Tabs {
 		}, $page );
 
 		foreach ( array(
-			'google_verification'    => __( 'Google Search Console', 'perrylabs-seo' ),
-			'bing_verification'      => __( 'Bing Webmaster', 'perrylabs-seo' ),
-			'pinterest_verification' => __( 'Pinterest', 'perrylabs-seo' ),
-			'yandex_verification'    => __( 'Yandex', 'perrylabs-seo' ),
-			'baidu_verification'     => __( 'Baidu', 'perrylabs-seo' ),
+			'google_verification'     => __( 'Google Search Console', 'perrylabs-seo' ),
+			'bing_verification'       => __( 'Bing Webmaster', 'perrylabs-seo' ),
+			'pinterest_verification'  => __( 'Pinterest', 'perrylabs-seo' ),
+			'yandex_verification'     => __( 'Yandex', 'perrylabs-seo' ),
+			'baidu_verification'      => __( 'Baidu', 'perrylabs-seo' ),
+			'apple_news_verification' => __( 'Apple News', 'perrylabs-seo' ),
+			'cloudflare_verification' => __( 'Cloudflare', 'perrylabs-seo' ),
+			'norton_verification'     => __( 'Norton Safe Web', 'perrylabs-seo' ),
 		) as $key => $label ) {
 			add_settings_field( $key, $label, array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_verify', array( 'key' => $key ) );
 			PLSEO_Options::register_sanitizer( $key, static fn( $v ) => sanitize_text_field( (string) $v ) );
@@ -395,6 +402,63 @@ final class PLSEO_Tabs {
 		echo '</tbody></table>';
 	}
 
+	/* ───────────────────────── analytics ───────────────────────── */
+
+	private static function register_analytics(): void {
+		$page = self::page( 'analytics' );
+
+		add_settings_section( 'plseo_analytics_intro', __( 'Analytics installers', 'perrylabs-seo' ), static function (): void {
+			echo '<p>' . esc_html__( 'Paste an ID and the corresponding tag installs site-wide. The snippet is consent-gated when a compatible consent layer is present.', 'perrylabs-seo' ) . '</p>';
+			echo '<p><strong>' . esc_html( PLSEO_Analytics::consent_status_text() ) . '</strong></p>';
+		}, $page );
+
+		add_settings_field( 'analytics_ga4_id', __( 'Google Analytics 4 (G-XXXXX)', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_ga4_id', 'placeholder' => 'G-XXXXXXXXXX' ) );
+		PLSEO_Options::register_sanitizer( 'analytics_ga4_id', static fn( $v ) => sanitize_text_field( (string) $v ) );
+
+		add_settings_field( 'analytics_gtm_id', __( 'Google Tag Manager (GTM-XXXX)', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_gtm_id', 'placeholder' => 'GTM-XXXXXXX' ) );
+		PLSEO_Options::register_sanitizer( 'analytics_gtm_id', static fn( $v ) => sanitize_text_field( (string) $v ) );
+
+		add_settings_field( 'analytics_plausible_domain', __( 'Plausible data-domain', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_plausible_domain', 'placeholder' => 'example.com' ) );
+		PLSEO_Options::register_sanitizer( 'analytics_plausible_domain', static fn( $v ) => sanitize_text_field( (string) $v ) );
+
+		add_settings_field( 'analytics_fathom_site_id', __( 'Fathom site ID', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_fathom_site_id' ) );
+		PLSEO_Options::register_sanitizer( 'analytics_fathom_site_id', static fn( $v ) => sanitize_text_field( (string) $v ) );
+
+		add_settings_field( 'analytics_clarity_id', __( 'Microsoft Clarity project ID', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_clarity_id' ) );
+		PLSEO_Options::register_sanitizer( 'analytics_clarity_id', static fn( $v ) => sanitize_text_field( (string) $v ) );
+
+		add_settings_field( 'analytics_track_editors', __( 'Track logged-in editors', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_track_editors', 'inline_label' => __( 'Include users with edit_posts capability (off = your team\'s admin visits are excluded)', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'analytics_track_editors', static fn( $v ) => (bool) $v );
+	}
+
+	/* ───────────────────────── performance ───────────────────────── */
+
+	private static function register_perf(): void {
+		$page = self::page( 'perf' );
+
+		add_settings_section( 'plseo_perf_cwv', __( 'Core Web Vitals helpers', 'perrylabs-seo' ), static function (): void {
+			echo '<p>' . esc_html__( 'Small interventions on rendered content. None require theme changes.', 'perrylabs-seo' ) . '</p>';
+		}, $page );
+
+		add_settings_field( 'perf_resource_hints', __( 'Resource hints', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_perf_cwv', array( 'key' => 'perf_resource_hints', 'inline_label' => __( 'Add dns-prefetch / preconnect for known external hosts', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'perf_resource_hints', static fn( $v ) => (bool) $v );
+
+		add_settings_field( 'perf_lazy_load', __( 'Lazy load images', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_perf_cwv', array( 'key' => 'perf_lazy_load', 'inline_label' => __( 'Add loading="lazy" + decoding="async" to <img> tags missing them', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'perf_lazy_load', static fn( $v ) => (bool) $v );
+
+		add_settings_field( 'perf_fetchpriority', __( 'LCP fetch priority', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_perf_cwv', array( 'key' => 'perf_fetchpriority', 'inline_label' => __( 'Mark the first <img> of singular content as fetchpriority="high" (boosts LCP)', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'perf_fetchpriority', static fn( $v ) => (bool) $v );
+
+		add_settings_field( 'perf_image_dimensions', __( 'Auto-fill image dimensions', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_perf_cwv', array( 'key' => 'perf_image_dimensions', 'inline_label' => __( 'Fill in missing width/height attributes from attachment metadata (prevents CLS)', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'perf_image_dimensions', static fn( $v ) => (bool) $v );
+
+		// Reading-time / TOC.
+		add_settings_section( 'plseo_perf_toc', __( 'Reading time & table of contents', 'perrylabs-seo' ), '__return_false', $page );
+
+		add_settings_field( 'auto_toc_enabled', __( 'Auto-inject table of contents', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_perf_toc', array( 'key' => 'auto_toc_enabled', 'inline_label' => __( 'Insert a navigation list before the first H2 on posts with 3+ H2s', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'auto_toc_enabled', static fn( $v ) => (bool) $v );
+	}
+
 	/* ───────────────────────── tools ───────────────────────── */
 
 	private static function register_tools(): void {
@@ -413,6 +477,10 @@ final class PLSEO_Tabs {
 
 		add_settings_field( 'redirects_log_retention_days', __( '404 log retention (days)', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'number' ), $page, 'plseo_404', array( 'key' => 'redirects_log_retention_days', 'min' => 7, 'max' => 365 ) );
 		PLSEO_Options::register_sanitizer( 'redirects_log_retention_days', static fn( $v ) => max( 7, min( 365, (int) $v ) ) );
+
+		add_settings_section( 'plseo_search', __( 'On-site search log', 'perrylabs-seo' ), '__return_false', $page );
+		add_settings_field( 'search_log_retention_days', __( 'Search log retention (days)', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'number' ), $page, 'plseo_search', array( 'key' => 'search_log_retention_days', 'min' => 7, 'max' => 365 ) );
+		PLSEO_Options::register_sanitizer( 'search_log_retention_days', static fn( $v ) => max( 7, min( 365, (int) $v ) ) );
 	}
 
 	/* ───────────────────────── advanced ───────────────────────── */
@@ -449,6 +517,34 @@ final class PLSEO_Tabs {
 
 		add_settings_field( 'image_optimize_upload_slug', __( 'Optimize upload filenames', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_images', array( 'key' => 'image_optimize_upload_slug', 'inline_label' => __( 'Rewrite image filenames to slug form on upload (e.g. DSC_4523.jpg → founders-portrait.jpg)', 'perrylabs-seo' ) ) );
 		PLSEO_Options::register_sanitizer( 'image_optimize_upload_slug', static fn( $v ) => (bool) $v );
+
+		// Canonical-domain enforcement.
+		add_settings_section( 'plseo_canon', __( 'Canonical domain enforcement', 'perrylabs-seo' ), static function (): void {
+			echo '<p>' . esc_html__( 'Force every visitor onto your canonical URL with a single 301. Each rule runs before page rendering — be careful turning them on in production.', 'perrylabs-seo' ) . '</p>';
+		}, $page );
+
+		add_settings_field( 'canon_force_https', __( 'Force HTTPS', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_canon', array( 'key' => 'canon_force_https', 'inline_label' => __( 'Redirect http:// to https://', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'canon_force_https', static fn( $v ) => (bool) $v );
+
+		add_settings_field( 'canon_www_mode', __( 'www handling', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'select' ), $page, 'plseo_canon', array(
+			'key' => 'canon_www_mode',
+			'choices' => array(
+				'off'   => __( 'No change', 'perrylabs-seo' ),
+				'add'   => __( 'Force www (non-www → www)', 'perrylabs-seo' ),
+				'strip' => __( 'Strip www (www → non-www)', 'perrylabs-seo' ),
+			),
+		) );
+		PLSEO_Options::register_sanitizer( 'canon_www_mode', static fn( $v ) => in_array( $v, array( 'off', 'add', 'strip' ), true ) ? (string) $v : 'off' );
+
+		add_settings_field( 'canon_trailing_slash', __( 'Trailing slash', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'select' ), $page, 'plseo_canon', array(
+			'key' => 'canon_trailing_slash',
+			'choices' => array(
+				'off'   => __( 'No change', 'perrylabs-seo' ),
+				'add'   => __( 'Force trailing /', 'perrylabs-seo' ),
+				'strip' => __( 'Strip trailing /', 'perrylabs-seo' ),
+			),
+		) );
+		PLSEO_Options::register_sanitizer( 'canon_trailing_slash', static fn( $v ) => in_array( $v, array( 'off', 'add', 'strip' ), true ) ? (string) $v : 'off' );
 
 		add_settings_section( 'plseo_misc', __( 'Misc', 'perrylabs-seo' ), '__return_false', $page );
 		add_settings_field( 'remove_emoji_scripts', __( 'WP emoji scripts', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_misc', array( 'key' => 'remove_emoji_scripts', 'inline_label' => __( 'Remove from <head> (small perf win)', 'perrylabs-seo' ) ) );

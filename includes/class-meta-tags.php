@@ -263,17 +263,27 @@ final class PLSEO_Meta_Tags {
 
 	private function output_verification(): void {
 		$map = array(
-			'google_verification'    => 'google-site-verification',
-			'bing_verification'      => 'msvalidate.01',
-			'pinterest_verification' => 'p:domain_verify',
-			'yandex_verification'    => 'yandex-verification',
-			'baidu_verification'     => 'baidu-site-verification',
+			'google_verification'      => 'google-site-verification',
+			'bing_verification'        => 'msvalidate.01',
+			'pinterest_verification'   => 'p:domain_verify',
+			'yandex_verification'      => 'yandex-verification',
+			'baidu_verification'       => 'baidu-site-verification',
+			'apple_news_verification'  => 'apple-news-publisher',
+			'cloudflare_verification'  => 'cf-2fa-verify',
+			'norton_verification'      => 'norton-safeweb-site-verification',
 		);
 		foreach ( $map as $option_key => $meta_name ) {
 			$val = trim( (string) PLSEO_Options::get( $option_key, '' ) );
 			if ( '' !== $val ) {
 				printf( "<meta name=\"%s\" content=\"%s\" />\n", esc_attr( $meta_name ), esc_attr( $val ) );
 			}
+		}
+
+		// Mastodon rel-me (a <link>, not a <meta>) — establishes verified link
+		// from Mastodon profile back to the site.
+		$mastodon = trim( (string) PLSEO_Options::get( 'mastodon_url', '' ) );
+		if ( '' !== $mastodon ) {
+			printf( "<link rel=\"me\" href=\"%s\" />\n", esc_url( $mastodon ) );
 		}
 	}
 

@@ -75,9 +75,11 @@ final class PLSEO_Redirects {
 			$this->perform( $exact, $exact->target_url );
 		}
 
-		// 2. Regex sweep. Limit to a reasonable batch so the page stays snappy.
-		foreach ( $this->load_regex_rules() as $rule ) {
-			$out = $this->apply_regex( $rule, $path );
+		// 2. Pattern sweep (regex + wildcard rules).
+		foreach ( $this->load_pattern_rules() as $rule ) {
+			$out = 'wildcard' === ( $rule->match_type ?? '' )
+				? $this->apply_wildcard( $rule, $path )
+				: $this->apply_regex( $rule, $path );
 			if ( null !== $out ) {
 				$this->perform( $rule, $out );
 			}
@@ -108,18 +110,50 @@ final class PLSEO_Redirects {
 	}
 
 	/** @return array<int,object> */
-	private function load_regex_rules(): array {
-		$cached = wp_cache_get( 'plseo_regex_rules', 'plseo' );
+	private function load_pattern_rules(): array {
+		$cached = wp_cache_get( 'plseo_pattern_rules', 'plseo' );
 		if ( is_array( $cached ) ) {
 			return $cached;
 		}
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$rows  = $wpdb->get_results( "SELECT id, source_url, target_url, status_code FROM {$table} WHERE match_type='regex' LIMIT 200" );
+		$rows  = $wpdb->get_results( "SELECT id, source_url, target_url, status_code, match_type FROM {$table} WHERE match_type IN ('regex','wildcard') LIMIT 200" );
 		$rows  = is_array( $rows ) ? $rows : array();
-		wp_cache_set( 'plseo_regex_rules', $rows, 'plseo', MINUTE_IN_SECONDS );
+		wp_cache_set( 'plseo_pattern_rules', $rows, 'plseo', MINUTE_IN_SECONDS );
 		return $rows;
+	}
+
+	/**
+	 * Wildcard matcher: `*` matches any run of non-slash characters; `**` matches
+	 * across slashes. Captures are exposed as `$1`, `$2`, … in the target.
+	 *
+	 * Example:
+	 *   source: /blog/*       target: /articles/$1
+	 *   source: /docs/**      target: /help/$1
+	 */
+	private function apply_wildcard( object $rule, string $path ): ?string {
+		$pattern = (string) $rule->source_url;
+		if ( '' === $pattern ) {
+			return null;
+		}
+		// Build the regex: literal-quote everything, then re-introduce `**` and `*`
+		// as capture groups.
+		$marker_any   = '__PLSEO_DOUBLESTAR__';
+		$marker_seg   = '__PLSEO_STAR__';
+		$prepared     = str_replace( array( '**', '*' ), array( $marker_any, $marker_seg ), $pattern );
+		$escaped      = preg_quote( $prepared, '#' );
+		$regex        = '#^' . str_replace( array( $marker_any, $marker_seg ), array( '(.*)', '([^/]*)' ), $escaped ) . '$#';
+
+		if ( ! preg_match( $regex, $path, $m ) ) {
+			return null;
+		}
+
+		$target = (string) $rule->target_url;
+		for ( $i = 1, $n = count( $m ); $i < $n; $i++ ) {
+			$target = str_replace( '$' . $i, (string) $m[ $i ], $target );
+		}
+		return $target;
 	}
 
 	private function apply_regex( object $rule, string $path ): ?string {
@@ -174,14 +208,14 @@ final class PLSEO_Redirects {
 				'source_url'  => self::normalize_source( (string) $data['source_url'], (string) ( $data['match_type'] ?? 'exact' ) ),
 				'target_url'  => (string) $data['target_url'],
 				'status_code' => (int) ( $data['status_code'] ?? 301 ),
-				'match_type'  => in_array( $data['match_type'] ?? 'exact', array( 'exact', 'regex' ), true ) ? (string) $data['match_type'] : 'exact',
+				'match_type'  => in_array( $data['match_type'] ?? 'exact', array( 'exact', 'regex', 'wildcard' ), true ) ? (string) $data['match_type'] : 'exact',
 				'created_at'  => current_time( 'mysql' ),
 				'notes'       => (string) ( $data['notes'] ?? '' ),
 				'hits'        => 0,
 			),
 			array( '%s', '%s', '%d', '%s', '%s', '%s', '%d' )
 		);
-		wp_cache_delete( 'plseo_regex_rules', 'plseo' );
+		wp_cache_delete( 'plseo_pattern_rules', 'plseo' );
 		return $ok ? (int) $wpdb->insert_id : false;
 	}
 
@@ -189,7 +223,7 @@ final class PLSEO_Redirects {
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE;
 		$ok    = $wpdb->delete( $table, array( 'id' => $id ), array( '%d' ) ); // phpcs:ignore WordPress.DB
-		wp_cache_delete( 'plseo_regex_rules', 'plseo' );
+		wp_cache_delete( 'plseo_pattern_rules', 'plseo' );
 		return (bool) $ok;
 	}
 

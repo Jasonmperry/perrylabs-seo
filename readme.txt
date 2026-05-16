@@ -4,7 +4,7 @@ Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, jso
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.1
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,21 @@ The schema graph builder accepts custom contributors via plseo_register_schema_c
 
 == Changelog ==
 
+= 2.2.0 =
+"Best SEO things in the world" pass — closes the remaining feature gap against the paid players:
+
+* Core Web Vitals helpers: dns-prefetch + preconnect for external hosts, lazy-load + decoding="async" auto-attribute, fetchpriority="high" on the first <img> of singular content (LCP boost), auto-fill width/height from attachment metadata (CLS fix).
+* Cookie-aware analytics installer: GA4, GTM, Plausible, Fathom, Microsoft Clarity. If PerryLabs Cookie Notice is active, each tag registers via plcn_register_script() so it's consent-gated automatically. Otherwise injects directly.
+* Canonical-domain enforcement: force HTTPS, force www / strip www, force trailing slash / strip trailing slash. Single 301 before render.
+* Wildcard redirects: /old/* → /new/$1 syntax, on top of the existing exact + regex modes.
+* 9 new schema.org types via the rules engine: Product (with Offer + AggregateRating), Review, Recipe, JobPosting, Course, SoftwareApplication, Book, ClaimReview, QAPage.
+* Reading time computed at 230 wpm and exposed as timeRequired on the primary @graph entity. Optional auto table of contents inserted before the first H2 when a post has 3+ H2 headings.
+* On-site search log: captures every is_search() query (dedupe by query/day), surfaces top queries AND a zero-result list (content opportunity goldmine). Bot UAs filtered out. Configurable retention.
+* Bulk image alt editor: dedicated screen for fixing missing alt across many attachments at once. Defaults to "missing only" filter.
+* Three more webmaster verifications: Apple News, Cloudflare, Norton Safe Web.
+* Mastodon profile verification via <link rel="me"> from the configured Mastodon URL.
+* Two new settings tabs: Analytics + Performance. Canonical-domain rules added to Advanced. Verifications expanded on General.
+
 = 2.1.0 =
 Feature pass to close gaps against Semrush + RankMath Pro:
 
@@ -134,6 +149,9 @@ Major rewrite. Codename "Signal Boost." Everything new:
 Last v1 release. Preserved on the `v1-archive` git branch.
 
 == Upgrade Notice ==
+
+= 2.2.0 =
+Adds Core Web Vitals helpers, consent-aware analytics installer, canonical-domain enforcement, wildcard redirects, 9 more schema types, reading time + auto TOC, on-site search log, bulk image alt editor.
 
 = 2.1.0 =
 Adds site audit, schema display rules, live SERP preview, news + video sitemaps, multi-keyword analysis, cornerstone marker, image SEO, internal-link graph. No data migration needed.

@@ -3,7 +3,7 @@
  * Plugin Name: PerryLabs SEO + AEO
  * Plugin URI:  https://perrylabs.io
  * Description: Search Engine Optimization and Answer Engine Optimization for WordPress. Unified @graph JSON-LD, per-type sitemaps, redirects with 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. No external dependencies, no nag screens.
- * Version:     2.1.0
+ * Version:     2.2.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author:      PerryLabs
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * ────────────────────────────────────────────────────────────────────── */
 
-define( 'PL_SEO_VERSION', '2.1.0' );
+define( 'PL_SEO_VERSION', '2.2.0' );
 define( 'PL_SEO_CODENAME', 'Signal Boost' );
 define( 'PL_SEO_PLUGIN_FILE', __FILE__ );
 define( 'PL_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -52,6 +52,7 @@ $plseo_classes = array(
 	// Schema graph.
 	'includes/schema/class-schema-graph.php',
 	'includes/schema/class-schema-rules.php',
+	'includes/schema/class-schema-extended.php',
 	'includes/schema/class-schema-types.php',
 	'includes/schema/class-schema-content.php',
 	'includes/schema/class-schema-aeo.php',
@@ -80,6 +81,21 @@ $plseo_classes = array(
 	// Image SEO (auto-alt + slug optimization on upload).
 	'includes/class-image-seo.php',
 
+	// Core Web Vitals helpers.
+	'includes/class-perf.php',
+
+	// Consent-aware analytics installer.
+	'includes/class-analytics.php',
+
+	// Canonical-domain enforcement (HTTPS, www, trailing slash).
+	'includes/class-canonical.php',
+
+	// Reading time + optional table of contents.
+	'includes/class-reading-time.php',
+
+	// On-site search log.
+	'includes/class-search-log.php',
+
 	// Site audit (Semrush-style aggregate health report).
 	'includes/class-audit.php',
 
@@ -89,6 +105,8 @@ $plseo_classes = array(
 	'includes/admin/class-log404-screen.php',
 	'includes/admin/class-aeo-dashboard-screen.php',
 	'includes/admin/class-audit-screen.php',
+	'includes/admin/class-search-log-screen.php',
+	'includes/admin/class-bulk-alt-editor.php',
 	'includes/admin/class-admin.php',
 	'includes/admin/class-tabs.php',
 	'includes/admin/class-meta-box.php',
@@ -134,6 +152,11 @@ add_action( 'plugins_loaded', function (): void {
 	PLSEO_Image_SEO::instance()->boot();
 	PLSEO_Link_Graph::instance()->boot();
 	PLSEO_Audit::instance()->boot();
+	PLSEO_Perf::instance()->boot();
+	PLSEO_Analytics::instance()->boot();
+	PLSEO_Canonical::instance()->boot();
+	PLSEO_Reading_Time::instance()->boot();
+	PLSEO_Search_Log::instance()->boot();
 
 	// Admin-only modules.
 	if ( is_admin() ) {
@@ -161,6 +184,7 @@ register_activation_hook( __FILE__, function (): void {
 	PLSEO_Redirects::install_table();
 	PLSEO_404_Log::install_table();
 	PLSEO_AI_Visit_Log::install_table();
+	PLSEO_Search_Log::install_table();
 
 	// Migrate v1 → v2 if needed; seed defaults otherwise.
 	PLSEO_Migrations::run();

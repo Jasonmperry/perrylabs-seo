@@ -43,6 +43,7 @@ final class PLSEO_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 
 		PLSEO_Admin_Actions::boot();
+		PLSEO_Bulk_Alt_Editor::boot();
 	}
 
 	/* ───────────────────────── menu ───────────────────────── */
@@ -62,8 +63,10 @@ final class PLSEO_Admin {
 		add_submenu_page( self::MENU_SLUG, __( 'Redirects', 'perrylabs-seo' ),      __( 'Redirects', 'perrylabs-seo' ),      'manage_options', 'plseo-redirects',          array( PLSEO_Redirects_Screen::class,     'render' ) );
 		add_submenu_page( self::MENU_SLUG, __( '404 log', 'perrylabs-seo' ),        __( '404 log', 'perrylabs-seo' ),        'manage_options', 'plseo-404-log',            array( PLSEO_Log404_Screen::class,        'render' ) );
 		add_submenu_page( self::MENU_SLUG, __( 'Bulk SEO editor', 'perrylabs-seo' ),__( 'Bulk editor', 'perrylabs-seo' ),    'edit_posts',     'plseo-bulk',               array( PLSEO_Bulk_Editor::instance(),     'render' ) );
+		add_submenu_page( self::MENU_SLUG, __( 'Bulk image alt', 'perrylabs-seo' ), __( 'Bulk image alt', 'perrylabs-seo' ), 'upload_files',   'plseo-bulk-alt',           array( PLSEO_Bulk_Alt_Editor::class,      'render' ) );
 		add_submenu_page( self::MENU_SLUG, __( 'AEO dashboard', 'perrylabs-seo' ),  __( 'AEO dashboard', 'perrylabs-seo' ),  'manage_options', 'plseo-aeo-dashboard',      array( PLSEO_AEO_Dashboard_Screen::class, 'render' ) );
 		add_submenu_page( self::MENU_SLUG, __( 'Site audit', 'perrylabs-seo' ),     __( 'Site audit', 'perrylabs-seo' ),     'manage_options', 'plseo-audit',              array( PLSEO_Audit_Screen::class,         'render' ) );
+		add_submenu_page( self::MENU_SLUG, __( 'Search log', 'perrylabs-seo' ),     __( 'Search log', 'perrylabs-seo' ),     'manage_options', 'plseo-search-log',         array( PLSEO_Search_Log_Screen::class,    'render' ) );
 	}
 
 	public function register_settings(): void {

@@ -43,6 +43,7 @@ final class PLSEO_Redirects_Screen {
 						<td>
 							<select name="match_type">
 								<option value="exact"><?php esc_html_e( 'Exact', 'perrylabs-seo' ); ?></option>
+								<option value="wildcard"><?php esc_html_e( 'Wildcard (/old/* → /new/$1)', 'perrylabs-seo' ); ?></option>
 								<option value="regex"><?php esc_html_e( 'Regex (PCRE)', 'perrylabs-seo' ); ?></option>
 							</select>
 							<select name="status_code">

@@ -127,6 +127,11 @@ final class PLSEO_Schema_Content {
 			}
 		}
 
+		// Extended types (Product, Review, Recipe, JobPosting, Course, etc.).
+		if ( PLSEO_Schema_Extended::handles( $type ) ) {
+			return PLSEO_Schema_Extended::build( $post, $type, $node ) ?? $node;
+		}
+
 		// Event-specific.
 		if ( 'Event' === $type ) {
 			$start = (string) plseo_get_post_meta( $post->ID, 'event_start', '' );

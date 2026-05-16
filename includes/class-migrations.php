@@ -36,6 +36,7 @@ final class PLSEO_Migrations {
 		PLSEO_Redirects::install_table();
 		PLSEO_404_Log::install_table();
 		PLSEO_AI_Visit_Log::install_table();
+		PLSEO_Search_Log::install_table();
 
 		if ( $installed < 1 ) {
 			self::fresh_install_or_v1_import();
