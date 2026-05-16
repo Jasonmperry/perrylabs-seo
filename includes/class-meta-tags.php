@@ -1,397 +1,379 @@
 <?php
 /**
- * PerryLabs SEO + AEO — Meta Tag Output
+ * PLSEO_Meta_Tags — title, description, canonical, OG, Twitter, hreflang, robots meta.
  *
- * Outputs meta title, description, canonical, robots, Open Graph, and
- * Twitter Card tags via wp_head. Handles singular, archive, and
- * taxonomy contexts.
+ * Hooks into wp_head at priority 1 to print our tags before any third-party noise.
+ * Per-post overrides (`_plseo_*` meta) always beat templated defaults.
  *
- * @package PerryLabs_SEO
+ * @package PerryLabs\SEO
  */
+
+declare( strict_types=1 );
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class PerryLabs_SEO_Meta_Tags {
+final class PLSEO_Meta_Tags {
 
-	public function __construct() {
-		// Filter the document title (WordPress 4.1+).
+	private static ?self $instance = null;
+
+	public static function instance(): self {
+		return self::$instance ??= new self();
+	}
+
+	private function __construct() {}
+
+	public function boot(): void {
 		add_filter( 'pre_get_document_title', array( $this, 'filter_document_title' ), 15 );
-		add_filter( 'document_title_separator', array( $this, 'filter_title_separator' ) );
+		add_filter( 'document_title_separator', array( $this, 'filter_title_separator' ), 15 );
+		add_action( 'wp_head', array( $this, 'output_head_tags' ), 1 );
 
-		// Output meta tags in <head>.
-		add_action( 'wp_head', array( $this, 'output_meta_tags' ), 1 );
+		// Strip core's default robots meta when we're handling robots ourselves.
+		add_filter( 'wp_robots', array( $this, 'filter_robots' ), 20 );
 
-		// Remove default canonical to avoid duplicates.
-		remove_action( 'wp_head', 'rel_canonical' );
-	}
-
-	/* ──────────────────────────────────────────────────────────────
-	 * Document title
-	 * ────────────────────────────────────────────────────────────── */
-
-	public function filter_document_title( string $title ): string {
-		if ( is_singular() ) {
-			$post      = get_queried_object();
-			$seo_title = $post ? get_post_meta( $post->ID, '_perrylabs_seo_title', true ) : '';
-
-			if ( $seo_title ) {
-				$separator = perrylabs_seo_get_option( 'title_separator', '|' );
-				$site_name = get_bloginfo( 'name' );
-
-				return $this->resolve_template_tags( $seo_title, $post->post_title, $site_name, $separator );
-			}
+		// Disable WP's emoji scripts when configured.
+		if ( (bool) PLSEO_Options::get( 'remove_emoji_scripts', false ) ) {
+			remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
+			remove_action( 'wp_print_styles', 'print_emoji_styles' );
 		}
-
-		return $title;
 	}
+
+	/* ───────────────────────── title ───────────────────────── */
 
 	public function filter_title_separator( string $sep ): string {
-		return perrylabs_seo_get_option( 'title_separator', '|' );
+		return (string) PLSEO_Options::get( 'title_separator', $sep );
 	}
 
-	/**
-	 * Replace template tags in title string.
-	 */
-	private function resolve_template_tags( string $template, string $post_title, string $site_name, string $separator ): string {
-		if ( strpos( $template, '%' ) !== false ) {
-			return str_replace(
-				array( '%title%', '%sitename%', '%sep%' ),
-				array( $post_title, $site_name, $separator ),
-				$template
-			);
-		}
-
-		// No template tags — append site name.
-		return $template . ' ' . $separator . ' ' . $site_name;
+	public function filter_document_title( string $title ): string {
+		$resolved = $this->resolve_title();
+		return '' !== $resolved ? $resolved : $title;
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Meta tag output
-	 * ────────────────────────────────────────────────────────────── */
-
-	public function output_meta_tags(): void {
-		echo "\n<!-- SEO + AEO -->\n";
-
-		$this->output_webmaster_verification();
-		$this->output_description();
-		$this->output_canonical();
-		$this->output_robots();
-		$this->output_open_graph();
-		$this->output_twitter_card();
-
-		echo "<!-- /SEO + AEO -->\n\n";
-	}
-
-	/**
-	 * Output webmaster verification meta tags.
-	 */
-	private function output_webmaster_verification(): void {
-		$verifications = array(
-			'google_verification'    => 'google-site-verification',
-			'bing_verification'      => 'msvalidate.01',
-			'pinterest_verification' => 'p:domain_verify',
-			'yandex_verification'    => 'yandex-verification',
-		);
-
-		foreach ( $verifications as $option_key => $meta_name ) {
-			$value = perrylabs_seo_get_option( $option_key, '' );
-			if ( ! empty( $value ) ) {
-				printf( '<meta name="%s" content="%s" />' . "\n", esc_attr( $meta_name ), esc_attr( $value ) );
-			}
-		}
-	}
-
-	/* ──────────────────────────────────────────────────────────────
-	 * Meta description
-	 * ────────────────────────────────────────────────────────────── */
-
-	private function output_description(): void {
-		$description = $this->get_description();
-		if ( $description ) {
-			printf( '<meta name="description" content="%s" />' . "\n", esc_attr( $description ) );
-		}
-	}
-
-	private function get_description(): string {
+	private function resolve_title(): string {
 		if ( is_singular() ) {
 			$post = get_queried_object();
-			if ( ! $post ) {
+			if ( ! $post instanceof \WP_Post ) {
 				return '';
 			}
-
-			$desc = get_post_meta( $post->ID, '_perrylabs_seo_description', true );
-			if ( $desc ) {
-				return $desc;
+			$override = (string) plseo_get_post_meta( $post->ID, 'title', '' );
+			if ( '' !== $override ) {
+				return PLSEO_Template_Resolver::resolve(
+					$override,
+					PLSEO_Template_Resolver::context_for_post( $post )
+				);
 			}
 
-			// Fallback: excerpt or trimmed content.
-			$fallback = $post->post_excerpt ?: $post->post_content;
-			return wp_trim_words( strip_shortcodes( wp_strip_all_tags( $fallback ) ), 25, '...' );
+			$tmpl_key = 'page' === $post->post_type ? 'title_template_page' : 'title_template_post';
+			$tmpl     = (string) PLSEO_Options::get( $tmpl_key, '%post_title% %sep% %site_name%' );
+			return PLSEO_Template_Resolver::resolve( $tmpl, PLSEO_Template_Resolver::context_for_post( $post ) );
 		}
 
-		if ( is_category() || is_tag() || is_tax() ) {
-			$term = get_queried_object();
-			if ( $term && $term->description ) {
-				return wp_trim_words( $term->description, 25, '...' );
+		if ( is_front_page() || is_home() ) {
+			$tmpl = (string) PLSEO_Options::get( 'title_template_home', '%site_name% %sep% %site_tagline%' );
+			return PLSEO_Template_Resolver::resolve( $tmpl );
+		}
+
+		if ( is_archive() || is_search() ) {
+			$tmpl    = (string) PLSEO_Options::get( 'title_template_archive', '%archive_title% %sep% %site_name%' );
+			$context = PLSEO_Template_Resolver::context_for_archive();
+			if ( is_search() ) {
+				$context['archive_title'] = sprintf( __( 'Search results for "%s"', 'perrylabs-seo' ), get_search_query() );
 			}
-		}
-
-		if ( is_home() || is_front_page() ) {
-			return perrylabs_seo_get_option( 'default_description', get_bloginfo( 'description' ) );
-		}
-
-		return perrylabs_seo_get_option( 'default_description', get_bloginfo( 'description' ) );
-	}
-
-	/* ──────────────────────────────────────────────────────────────
-	 * Canonical URL
-	 * ────────────────────────────────────────────────────────────── */
-
-	private function output_canonical(): void {
-		$canonical = $this->get_canonical();
-		if ( $canonical ) {
-			printf( '<link rel="canonical" href="%s" />' . "\n", esc_url( $canonical ) );
-		}
-
-		// Output alternate URLs for ported/mirrored content.
-		if ( is_singular() ) {
-			$post = get_queried_object();
-			if ( $post ) {
-				$alternates = get_post_meta( $post->ID, '_perrylabs_seo_alternate_urls', true );
-				if ( is_array( $alternates ) ) {
-					foreach ( $alternates as $alt_url ) {
-						printf( '<link rel="alternate" href="%s" />' . "\n", esc_url( $alt_url ) );
-					}
-				}
-			}
-		}
-	}
-
-	private function get_canonical(): string {
-		if ( is_singular() ) {
-			$post = get_queried_object();
-			if ( ! $post ) {
-				return '';
-			}
-
-			$override = get_post_meta( $post->ID, '_perrylabs_seo_canonical', true );
-			if ( $override ) {
-				return $override;
-			}
-
-			return (string) wp_get_canonical_url( $post );
-		}
-
-		if ( is_category() || is_tag() || is_tax() ) {
-			$term = get_queried_object();
-			return $term ? get_term_link( $term ) : '';
-		}
-
-		if ( is_home() && ! is_front_page() ) {
-			return (string) get_permalink( get_option( 'page_for_posts' ) );
-		}
-
-		if ( is_front_page() ) {
-			return home_url( '/' );
-		}
-
-		if ( is_post_type_archive() ) {
-			return (string) get_post_type_archive_link( get_queried_object()->name ?? '' );
+			return PLSEO_Template_Resolver::resolve( $tmpl, $context );
 		}
 
 		return '';
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Robots meta
-	 * ────────────────────────────────────────────────────────────── */
+	/* ───────────────────────── description ───────────────────────── */
 
-	private function output_robots(): void {
-		$directives = array();
-
-		// Per-post overrides.
+	private function resolve_description(): string {
 		if ( is_singular() ) {
 			$post = get_queried_object();
-			if ( $post ) {
-				if ( get_post_meta( $post->ID, '_perrylabs_seo_noindex', true ) ) {
-					$directives[] = 'noindex';
-				}
-				if ( get_post_meta( $post->ID, '_perrylabs_seo_nofollow', true ) ) {
-					$directives[] = 'nofollow';
-				}
+			if ( ! $post instanceof \WP_Post ) {
+				return '';
 			}
-		}
-
-		// Global archive defaults.
-		if ( is_date() && perrylabs_seo_get_option( 'noindex_archives', false ) ) {
-			$directives[] = 'noindex';
-		}
-		if ( is_category() && perrylabs_seo_get_option( 'noindex_categories', false ) ) {
-			$directives[] = 'noindex';
-		}
-		if ( is_tag() && perrylabs_seo_get_option( 'noindex_tags', false ) ) {
-			$directives[] = 'noindex';
-		}
-		if ( is_author() && perrylabs_seo_get_option( 'noindex_authors', true ) ) {
-			$directives[] = 'noindex';
-		}
-
-		// Paginated pages.
-		if ( is_paged() ) {
-			$directives[] = 'noindex';
-		}
-
-		// Search results should never be indexed.
-		if ( is_search() ) {
-			$directives[] = 'noindex';
-		}
-
-		$directives = array_unique( $directives );
-
-		if ( ! empty( $directives ) ) {
-			printf( '<meta name="robots" content="%s" />' . "\n", esc_attr( implode( ', ', $directives ) ) );
-		}
-	}
-
-	/* ──────────────────────────────────────────────────────────────
-	 * Open Graph
-	 * ────────────────────────────────────────────────────────────── */
-
-	private function output_open_graph(): void {
-		$tags = array();
-
-		$tags['og:site_name'] = get_bloginfo( 'name' );
-		$tags['og:locale']    = get_locale();
-
-		if ( is_singular() ) {
-			$post = get_queried_object();
-			if ( ! $post ) {
-				return;
+			$override = (string) plseo_get_post_meta( $post->ID, 'description', '' );
+			if ( '' !== $override ) {
+				return $override;
 			}
-
-			$separator = perrylabs_seo_get_option( 'title_separator', '|' );
-			$site_name = get_bloginfo( 'name' );
-
-			$seo_title = get_post_meta( $post->ID, '_perrylabs_seo_title', true );
-			if ( $seo_title ) {
-				$tags['og:title'] = $this->resolve_template_tags( $seo_title, $post->post_title, $site_name, $separator );
-			} else {
-				$tags['og:title'] = $post->post_title;
+			$excerpt = (string) $post->post_excerpt;
+			if ( '' !== $excerpt ) {
+				return $this->clip( $excerpt );
 			}
+			return $this->clip( $this->first_paragraph( $post ) );
+		}
 
-			$seo_desc = get_post_meta( $post->ID, '_perrylabs_seo_description', true );
-			$tags['og:description'] = $seo_desc ?: wp_trim_words( strip_shortcodes( wp_strip_all_tags( $post->post_excerpt ?: $post->post_content ) ), 25, '...' );
+		if ( is_front_page() || is_home() ) {
+			$default = (string) PLSEO_Options::get( 'default_description', '' );
+			return $default !== '' ? $default : (string) get_bloginfo( 'description' );
+		}
 
-			$tags['og:url'] = $this->get_canonical() ?: get_permalink( $post );
-
-			// Type: article for posts, website for pages.
-			$article_types = array( 'post', 'biobuzz_news', 'biobuzz_event' );
-			$tags['og:type'] = in_array( $post->post_type, $article_types, true ) ? 'article' : 'website';
-
-			// Image: social image override > featured image > default.
-			$tags['og:image'] = $this->get_social_image( $post->ID );
-
-		} elseif ( is_category() || is_tag() || is_tax() ) {
+		if ( is_category() || is_tag() || is_tax() ) {
 			$term = get_queried_object();
-			if ( $term ) {
-				$tags['og:title']       = $term->name;
-				$tags['og:description'] = $term->description ? wp_trim_words( $term->description, 25, '...' ) : '';
-				$tags['og:url']         = get_term_link( $term );
-				$tags['og:type']        = 'website';
-				$tags['og:image']       = perrylabs_seo_get_option( 'default_social_image', '' );
-			}
-
-		} else {
-			// Home / archives.
-			$tags['og:title']       = get_bloginfo( 'name' );
-			$tags['og:description'] = $this->get_description();
-			$tags['og:url']         = home_url( '/' );
-			$tags['og:type']        = 'website';
-			$tags['og:image']       = perrylabs_seo_get_option( 'default_social_image', '' );
-		}
-
-		foreach ( $tags as $property => $content ) {
-			if ( $content ) {
-				printf( '<meta property="%s" content="%s" />' . "\n", esc_attr( $property ), esc_attr( $content ) );
+			if ( $term instanceof \WP_Term && '' !== $term->description ) {
+				return $this->clip( wp_strip_all_tags( $term->description ) );
 			}
 		}
+
+		if ( is_author() ) {
+			$author = get_queried_object();
+			if ( $author instanceof \WP_User ) {
+				$bio = get_user_meta( $author->ID, 'description', true );
+				if ( $bio ) {
+					return $this->clip( wp_strip_all_tags( (string) $bio ) );
+				}
+			}
+		}
+
+		return (string) PLSEO_Options::get( 'default_description', (string) get_bloginfo( 'description' ) );
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Twitter Card
-	 * ────────────────────────────────────────────────────────────── */
+	private function first_paragraph( \WP_Post $post ): string {
+		$content = apply_filters( 'the_content', $post->post_content );
+		$content = wp_strip_all_tags( (string) $content );
+		$content = trim( preg_replace( '/\s+/u', ' ', $content ) ?? '' );
+		return $content;
+	}
 
-	private function output_twitter_card(): void {
-		$tags = array();
-		$tags['twitter:card'] = 'summary_large_image';
+	private function clip( string $text, int $max = 160 ): string {
+		$text = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( $text ) ) ?? '' );
+		if ( mb_strlen( $text ) <= $max ) {
+			return $text;
+		}
+		$clipped = mb_substr( $text, 0, $max - 1 );
+		$cut     = mb_strrpos( $clipped, ' ' );
+		if ( false !== $cut && $cut > $max - 30 ) {
+			$clipped = mb_substr( $clipped, 0, $cut );
+		}
+		return rtrim( $clipped, ' ,.;:-' ) . '…';
+	}
 
-		$twitter_handle = perrylabs_seo_get_option( 'twitter_handle', '' );
-		if ( $twitter_handle ) {
-			$tags['twitter:site'] = $twitter_handle;
+	/* ───────────────────────── robots ───────────────────────── */
+
+	public function filter_robots( array $robots ): array {
+		$noindex = $this->should_noindex();
+		if ( $noindex ) {
+			$robots['noindex']  = true;
+			$robots['nofollow'] = true;
+			unset( $robots['index'], $robots['follow'] );
+			return $robots;
 		}
 
 		if ( is_singular() ) {
 			$post = get_queried_object();
-			if ( ! $post ) {
-				return;
+			if ( $post instanceof \WP_Post && plseo_get_post_meta( $post->ID, 'nofollow', '' ) === '1' ) {
+				$robots['nofollow'] = true;
 			}
-
-			$separator = perrylabs_seo_get_option( 'title_separator', '|' );
-			$site_name = get_bloginfo( 'name' );
-
-			$seo_title = get_post_meta( $post->ID, '_perrylabs_seo_title', true );
-			if ( $seo_title ) {
-				$tags['twitter:title'] = $this->resolve_template_tags( $seo_title, $post->post_title, $site_name, $separator );
-			} else {
-				$tags['twitter:title'] = $post->post_title;
-			}
-
-			$seo_desc = get_post_meta( $post->ID, '_perrylabs_seo_description', true );
-			$tags['twitter:description'] = $seo_desc ?: wp_trim_words( strip_shortcodes( wp_strip_all_tags( $post->post_excerpt ?: $post->post_content ) ), 25, '...' );
-
-			$tags['twitter:image'] = $this->get_social_image( $post->ID );
-
-		} else {
-			$tags['twitter:title']       = get_bloginfo( 'name' );
-			$tags['twitter:description'] = $this->get_description();
-			$tags['twitter:image']       = perrylabs_seo_get_option( 'default_social_image', '' );
 		}
 
-		foreach ( $tags as $name => $content ) {
-			if ( $content ) {
-				printf( '<meta name="%s" content="%s" />' . "\n", esc_attr( $name ), esc_attr( $content ) );
+		return $robots;
+	}
+
+	private function should_noindex(): bool {
+		if ( is_singular() ) {
+			$post = get_queried_object();
+			if ( $post instanceof \WP_Post && plseo_get_post_meta( $post->ID, 'noindex', '' ) === '1' ) {
+				return true;
+			}
+			return false;
+		}
+		if ( is_search() ) {
+			return (bool) PLSEO_Options::get( 'noindex_search', true );
+		}
+		if ( is_404() ) {
+			return (bool) PLSEO_Options::get( 'noindex_404', true );
+		}
+		if ( is_author() ) {
+			return (bool) PLSEO_Options::get( 'noindex_authors', true );
+		}
+		if ( is_category() ) {
+			return (bool) PLSEO_Options::get( 'noindex_categories', false );
+		}
+		if ( is_tag() || is_tax() ) {
+			return (bool) PLSEO_Options::get( 'noindex_tags', true );
+		}
+		if ( is_date() || is_year() || is_month() || is_day() ) {
+			return (bool) PLSEO_Options::get( 'noindex_archives', false );
+		}
+		return false;
+	}
+
+	/* ───────────────────────── head output ───────────────────────── */
+
+	public function output_head_tags(): void {
+		// Description.
+		$desc = $this->resolve_description();
+		if ( '' !== $desc ) {
+			printf( "<meta name=\"description\" content=\"%s\" />\n", esc_attr( $desc ) );
+		}
+
+		// Canonical.
+		$canonical = $this->resolve_canonical();
+		if ( '' !== $canonical ) {
+			printf( "<link rel=\"canonical\" href=\"%s\" />\n", esc_url( $canonical ) );
+		}
+
+		// Hreflang alternates.
+		$this->output_hreflang();
+
+		// Webmaster verification.
+		$this->output_verification();
+
+		// Open Graph + Twitter.
+		$this->output_open_graph( $desc, $canonical );
+		$this->output_twitter_card( $desc );
+	}
+
+	private function resolve_canonical(): string {
+		if ( is_singular() ) {
+			$post = get_queried_object();
+			if ( $post instanceof \WP_Post ) {
+				$override = (string) plseo_get_post_meta( $post->ID, 'canonical', '' );
+				if ( '' !== $override ) {
+					return $override;
+				}
+				return (string) get_permalink( $post );
+			}
+		}
+		if ( is_front_page() ) {
+			return (string) home_url( '/' );
+		}
+		if ( is_category() || is_tag() || is_tax() ) {
+			$link = get_term_link( get_queried_object() );
+			return is_string( $link ) ? $link : '';
+		}
+		return '';
+	}
+
+	private function output_hreflang(): void {
+		if ( ! is_singular() ) {
+			return;
+		}
+		$post = get_queried_object();
+		if ( ! $post instanceof \WP_Post ) {
+			return;
+		}
+		$raw = (string) plseo_get_post_meta( $post->ID, 'hreflang', '' );
+		if ( '' === $raw ) {
+			return;
+		}
+		// One per line: "en-US|https://example.com/en/post"
+		foreach ( preg_split( '/\r?\n/', $raw ) as $line ) {
+			$line = trim( (string) $line );
+			if ( '' === $line || ! str_contains( $line, '|' ) ) {
+				continue;
+			}
+			[ $lang, $url ] = array_map( 'trim', explode( '|', $line, 2 ) );
+			if ( $lang === '' || $url === '' ) {
+				continue;
+			}
+			printf( "<link rel=\"alternate\" hreflang=\"%s\" href=\"%s\" />\n", esc_attr( $lang ), esc_url( $url ) );
+		}
+	}
+
+	private function output_verification(): void {
+		$map = array(
+			'google_verification'    => 'google-site-verification',
+			'bing_verification'      => 'msvalidate.01',
+			'pinterest_verification' => 'p:domain_verify',
+			'yandex_verification'    => 'yandex-verification',
+			'baidu_verification'     => 'baidu-site-verification',
+		);
+		foreach ( $map as $option_key => $meta_name ) {
+			$val = trim( (string) PLSEO_Options::get( $option_key, '' ) );
+			if ( '' !== $val ) {
+				printf( "<meta name=\"%s\" content=\"%s\" />\n", esc_attr( $meta_name ), esc_attr( $val ) );
 			}
 		}
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Helpers
-	 * ────────────────────────────────────────────────────────────── */
-
-	/**
-	 * Get the social sharing image for a post.
-	 *
-	 * Priority: social image override > featured image > default.
-	 */
-	private function get_social_image( int $post_id ): string {
-		// 1. Per-post social image override.
-		$social_image = get_post_meta( $post_id, '_perrylabs_seo_social_image', true );
-		if ( $social_image ) {
-			return $social_image;
+	private function output_open_graph( string $description, string $canonical ): void {
+		$title = $this->resolve_title();
+		if ( '' === $title ) {
+			$title = (string) wp_get_document_title();
+		}
+		$site_name = (string) get_bloginfo( 'name' );
+		$type      = is_singular() && ! is_front_page() ? 'article' : 'website';
+		$locale    = trim( (string) PLSEO_Options::get( 'og_locale', '' ) );
+		if ( '' === $locale ) {
+			$locale = str_replace( '-', '_', (string) get_locale() );
 		}
 
-		// 2. Featured image.
-		$thumbnail_id = get_post_thumbnail_id( $post_id );
-		if ( $thumbnail_id ) {
-			$image = wp_get_attachment_image_url( $thumbnail_id, 'large' );
-			if ( $image ) {
-				return $image;
+		printf( "<meta property=\"og:type\" content=\"%s\" />\n", esc_attr( $type ) );
+		printf( "<meta property=\"og:site_name\" content=\"%s\" />\n", esc_attr( $site_name ) );
+		printf( "<meta property=\"og:locale\" content=\"%s\" />\n", esc_attr( $locale ) );
+		if ( '' !== $title ) {
+			printf( "<meta property=\"og:title\" content=\"%s\" />\n", esc_attr( $title ) );
+		}
+		if ( '' !== $description ) {
+			printf( "<meta property=\"og:description\" content=\"%s\" />\n", esc_attr( $description ) );
+		}
+		if ( '' !== $canonical ) {
+			printf( "<meta property=\"og:url\" content=\"%s\" />\n", esc_url( $canonical ) );
+		}
+
+		$image = $this->resolve_social_image();
+		if ( '' !== $image ) {
+			printf( "<meta property=\"og:image\" content=\"%s\" />\n", esc_url( $image ) );
+		}
+
+		if ( 'article' === $type && is_singular() ) {
+			$post = get_queried_object();
+			if ( $post instanceof \WP_Post ) {
+				printf(
+					"<meta property=\"article:published_time\" content=\"%s\" />\n",
+					esc_attr( (string) get_the_date( 'c', $post ) )
+				);
+				printf(
+					"<meta property=\"article:modified_time\" content=\"%s\" />\n",
+					esc_attr( (string) get_the_modified_date( 'c', $post ) )
+				);
+				$author = $post->post_author ? get_userdata( (int) $post->post_author ) : false;
+				if ( $author ) {
+					printf( "<meta property=\"article:author\" content=\"%s\" />\n", esc_attr( $author->display_name ) );
+				}
 			}
 		}
+	}
 
-		// 3. Default from settings.
-		return perrylabs_seo_get_option( 'default_social_image', '' );
+	private function output_twitter_card( string $description ): void {
+		$card   = (string) PLSEO_Options::get( 'twitter_card_type', 'summary_large_image' );
+		$handle = trim( (string) PLSEO_Options::get( 'twitter_handle', '' ) );
+		$title  = $this->resolve_title();
+
+		printf( "<meta name=\"twitter:card\" content=\"%s\" />\n", esc_attr( $card ) );
+		if ( '' !== $handle ) {
+			$handle = '@' . ltrim( $handle, '@' );
+			printf( "<meta name=\"twitter:site\" content=\"%s\" />\n", esc_attr( $handle ) );
+		}
+		if ( '' !== $title ) {
+			printf( "<meta name=\"twitter:title\" content=\"%s\" />\n", esc_attr( $title ) );
+		}
+		if ( '' !== $description ) {
+			printf( "<meta name=\"twitter:description\" content=\"%s\" />\n", esc_attr( $description ) );
+		}
+		$image = $this->resolve_social_image();
+		if ( '' !== $image ) {
+			printf( "<meta name=\"twitter:image\" content=\"%s\" />\n", esc_url( $image ) );
+		}
+	}
+
+	private function resolve_social_image(): string {
+		if ( is_singular() ) {
+			$post = get_queried_object();
+			if ( $post instanceof \WP_Post ) {
+				$override = (string) plseo_get_post_meta( $post->ID, 'social_image', '' );
+				if ( '' !== $override ) {
+					return $override;
+				}
+				$thumb = get_the_post_thumbnail_url( $post, 'full' );
+				if ( is_string( $thumb ) && '' !== $thumb ) {
+					return $thumb;
+				}
+			}
+		}
+		return (string) PLSEO_Options::get( 'default_social_image', '' );
 	}
 }

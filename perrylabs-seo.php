@@ -2,121 +2,231 @@
 /**
  * Plugin Name: PerryLabs SEO + AEO
  * Plugin URI:  https://perrylabs.io
- * Description: Lightweight, no-bloat SEO & Answer Engine Optimization plugin. Meta tags, Open Graph, Twitter Cards, XML sitemap, JSON-LD structured data, redirects, IndexNow, llms.txt, and breadcrumbs — without the nag screens.
- * Version:     1.2.0
+ * Description: Search Engine Optimization and Answer Engine Optimization for WordPress. Unified @graph JSON-LD, per-type sitemaps, redirects with 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. No external dependencies, no nag screens.
+ * Version:     2.0.0
+ * Requires at least: 6.0
+ * Requires PHP: 8.1
  * Author:      PerryLabs
  * Author URI:  https://perrylabs.io
  * Text Domain: perrylabs-seo
  * Domain Path: /languages
- * Requires PHP: 8.0
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ *
+ * @package PerryLabs\SEO
  */
+
+declare( strict_types=1 );
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /* ──────────────────────────────────────────────────────────────────────
- * Constants
+ * Plugin constants
  * ────────────────────────────────────────────────────────────────────── */
 
-define( 'PL_SEO_VERSION', '1.2.0' );
-define( 'PL_SEO_CODENAME', 'Beacon' );
+define( 'PL_SEO_VERSION', '2.0.0' );
+define( 'PL_SEO_CODENAME', 'Signal Boost' );
+define( 'PL_SEO_PLUGIN_FILE', __FILE__ );
 define( 'PL_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PL_SEO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'PL_SEO_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 /* ──────────────────────────────────────────────────────────────────────
- * Autoload includes
+ * Class loader — flat list, no glob magic, deterministic order
  * ────────────────────────────────────────────────────────────────────── */
 
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-settings.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-meta-box.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-meta-tags.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-sitemap.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-schema.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-breadcrumbs.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-redirects.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-robots-txt.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-indexnow.php';
-require_once PL_SEO_PLUGIN_DIR . 'includes/class-llms-txt.php';
+$plseo_classes = array(
+	// Core infrastructure.
+	'includes/class-options.php',
+	'includes/class-migrations.php',
+	'includes/helpers/class-template-resolver.php',
+	'includes/helpers/class-field-renderer.php',
+
+	// Frontend SEO output.
+	'includes/class-meta-tags.php',
+	'includes/class-breadcrumbs.php',
+
+	// Schema graph.
+	'includes/schema/class-schema-graph.php',
+	'includes/schema/class-schema-types.php',
+	'includes/schema/class-schema-content.php',
+	'includes/schema/class-schema-aeo.php',
+
+	// Sitemap.
+	'includes/class-sitemap.php',
+
+	// Redirects + 404.
+	'includes/class-redirects.php',
+	'includes/class-redirects-csv.php',
+	'includes/class-404-log.php',
+
+	// Robots, AI crawlers, AEO infrastructure.
+	'includes/class-robots-txt.php',
+	'includes/class-ai-crawlers.php',
+	'includes/class-ai-visit-log.php',
+	'includes/class-indexnow.php',
+	'includes/class-llms-txt.php',
+
+	// Content analysis.
+	'includes/class-content-analysis.php',
+
+	// Admin layer.
+	'includes/admin/class-admin.php',
+	'includes/admin/class-tabs.php',
+	'includes/admin/class-meta-box.php',
+	'includes/admin/class-bulk-editor.php',
+	'includes/admin/class-admin-bar.php',
+	'includes/admin/class-dashboard-widget.php',
+
+	// REST + CLI.
+	'includes/class-rest-api.php',
+	'includes/class-cli.php',
+);
+
+foreach ( $plseo_classes as $plseo_relative ) {
+	require_once PL_SEO_PLUGIN_DIR . $plseo_relative;
+}
+unset( $plseo_classes, $plseo_relative );
 
 /* ──────────────────────────────────────────────────────────────────────
- * Initialization
+ * Bootstrap
  * ────────────────────────────────────────────────────────────────────── */
 
-add_action( 'plugins_loaded', function () {
-	// Redirects (admin + frontend).
-	$redirects = new PerryLabs_SEO_Redirects();
+// Keep the in-process options cache coherent when anything writes to plseo_options
+// outside of our sanitize callback (REST, CLI, third-party plugin, etc.).
+add_action( 'update_option_' . PLSEO_Options::OPTION_NAME, array( PLSEO_Options::class, 'flush_cache' ) );
+add_action( 'add_option_'    . PLSEO_Options::OPTION_NAME, array( PLSEO_Options::class, 'flush_cache' ) );
 
-	// Robots.txt viewer (admin-only rendering, no menu).
-	$robots = new PerryLabs_SEO_Robots_Txt();
+add_action( 'plugins_loaded', function (): void {
+	// Run pending migrations first — every other module depends on options shape.
+	PLSEO_Migrations::run();
 
-	// Admin-only components.
+	// Frontend modules always boot (some emit only when ! is_admin() internally).
+	PLSEO_Meta_Tags::instance()->boot();
+	PLSEO_Schema_Graph::instance()->boot();
+	PLSEO_Sitemap::instance()->boot();
+	PLSEO_Redirects::instance()->boot();
+	PLSEO_404_Log::instance()->boot();
+	PLSEO_Robots_Txt::instance()->boot();
+	PLSEO_AI_Crawlers::instance()->boot();
+	PLSEO_AI_Visit_Log::instance()->boot();
+	PLSEO_IndexNow::instance()->boot();
+	PLSEO_LLMs_Txt::instance()->boot();
+	PLSEO_REST_API::instance()->boot();
+
+	// Admin-only modules.
 	if ( is_admin() ) {
-		new PerryLabs_SEO_Settings( $redirects, $robots );
-		new PerryLabs_SEO_Meta_Box();
+		PLSEO_Admin::instance()->boot();
+		PLSEO_Meta_Box::instance()->boot();
+		PLSEO_Bulk_Editor::instance()->boot();
+		PLSEO_Dashboard_Widget::instance()->boot();
 	}
 
-	// Frontend components.
-	new PerryLabs_SEO_Meta_Tags();
-	new PerryLabs_SEO_Sitemap();
-	new PerryLabs_SEO_Schema();
+	// Admin bar pill — front + admin, only for users who can edit posts.
+	PLSEO_Admin_Bar::instance()->boot();
 
-	// IndexNow instant-indexing pings.
-	new PerryLabs_SEO_IndexNow();
-
-	// llms.txt / llms-full.txt endpoints.
-	new PerryLabs_SEO_Llms_Txt();
+	// WP-CLI commands.
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		PLSEO_CLI::register();
+	}
 } );
 
 /* ──────────────────────────────────────────────────────────────────────
- * Activation — flush rewrite rules for sitemap endpoint
+ * Activation / deactivation
  * ────────────────────────────────────────────────────────────────────── */
 
-register_activation_hook( __FILE__, function () {
-	// Register rewrite rules before flushing.
-	PerryLabs_SEO_Sitemap::register_rewrite_rules();
-	PerryLabs_SEO_IndexNow::register_rewrite_rules();
-	PerryLabs_SEO_Llms_Txt::register_rewrite_rules();
-	flush_rewrite_rules();
+register_activation_hook( __FILE__, function (): void {
+	// Tables first (some migrations write to them).
+	PLSEO_Redirects::install_table();
+	PLSEO_404_Log::install_table();
+	PLSEO_AI_Visit_Log::install_table();
 
-	// Create redirect & 404 log tables.
-	PerryLabs_SEO_Redirects::install_tables();
+	// Migrate v1 → v2 if needed; seed defaults otherwise.
+	PLSEO_Migrations::run();
+
+	// Register rewrite endpoints before flushing.
+	PLSEO_Sitemap::register_rewrites();
+	PLSEO_IndexNow::register_rewrites();
+	PLSEO_LLMs_Txt::register_rewrites();
+	flush_rewrite_rules();
 } );
 
-register_deactivation_hook( __FILE__, function () {
+register_deactivation_hook( __FILE__, function (): void {
 	flush_rewrite_rules();
 } );
 
 /* ──────────────────────────────────────────────────────────────────────
- * Helper: Get plugin option with fallback
+ * Plugin row action links
+ * ────────────────────────────────────────────────────────────────────── */
+
+add_filter( 'plugin_action_links_' . PL_SEO_PLUGIN_BASENAME, function ( array $links ): array {
+	$settings = '<a href="' . esc_url( admin_url( 'admin.php?page=plseo' ) ) . '">' . esc_html__( 'Settings', 'perrylabs-seo' ) . '</a>';
+	array_unshift( $links, $settings );
+	return $links;
+} );
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Public helper functions — the stable API for themes and other plugins
  * ────────────────────────────────────────────────────────────────────── */
 
 /**
- * Retrieve an SEO + AEO option.
+ * Get a single plugin option.
  *
- * @param string $key     Option key (without prefix).
- * @param mixed  $default Default value.
+ * @param string $key     Option key (no prefix).
+ * @param mixed  $default Fallback when key is unset.
  * @return mixed
  */
-function perrylabs_seo_get_option( string $key, mixed $default = '' ): mixed {
-	$options = get_option( 'perrylabs_seo_options', array() );
-	return $options[ $key ] ?? $default;
+function plseo_get_option( string $key, mixed $default = '' ): mixed {
+	return PLSEO_Options::get( $key, $default );
 }
 
-/* ──────────────────────────────────────────────────────────────────────
- * Template tag: Breadcrumbs
- * ────────────────────────────────────────────────────────────────────── */
+/**
+ * Get a single post-level SEO meta value.
+ *
+ * @param int    $post_id Post ID.
+ * @param string $key     Meta key without the _plseo_ prefix.
+ * @param mixed  $default Fallback when unset or empty string.
+ * @return mixed
+ */
+function plseo_get_post_meta( int $post_id, string $key, mixed $default = '' ): mixed {
+	$value = get_post_meta( $post_id, '_plseo_' . $key, true );
+	return ( '' === $value || null === $value ) ? $default : $value;
+}
 
 /**
- * Output semantic breadcrumbs with JSON-LD.
+ * Render breadcrumbs as HTML (the JSON-LD copy is emitted automatically in <head>).
  *
- * Usage: <?php perrylabs_seo_breadcrumbs(); ?>
+ * Drop into a theme template: `<?php plseo_breadcrumbs(); ?>`
  *
- * @param array $args Optional. Configuration arguments.
+ * @param array<string,mixed> $args Optional rendering overrides.
  */
-function perrylabs_seo_breadcrumbs( array $args = array() ): void {
-	PerryLabs_SEO_Breadcrumbs::render( $args );
+function plseo_breadcrumbs( array $args = array() ): void {
+	PLSEO_Breadcrumbs::instance()->render( $args );
+}
+
+/**
+ * Register a schema-graph contributor at runtime.
+ *
+ * Themes/plugins can add their own nodes to the graph by passing
+ * a callable that returns either an array (single node) or array<int,array> (multiple).
+ *
+ * @param string                          $id       Unique contributor ID.
+ * @param callable(\WP_Post|null):mixed   $callback Callback receiving the queried post (or null).
+ * @param int                             $priority Lower = earlier in the graph. Default 10.
+ */
+function plseo_register_schema_contributor( string $id, callable $callback, int $priority = 10 ): void {
+	PLSEO_Schema_Graph::instance()->register_contributor( $id, $callback, $priority );
+}
+
+/**
+ * Programmatically log an AI crawler visit. Mostly used by the AI Visit Log module,
+ * but exposed so other plugins (analytics, security) can contribute observations.
+ *
+ * @param string $bot_slug  Slug from PLSEO_AI_Crawlers::CATALOG.
+ * @param string $request_uri Path that was requested.
+ */
+function plseo_log_ai_visit( string $bot_slug, string $request_uri ): void {
+	PLSEO_AI_Visit_Log::instance()->record( $bot_slug, $request_uri );
 }

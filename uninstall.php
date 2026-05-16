@@ -1,52 +1,41 @@
 <?php
 /**
- * PerryLabs SEO + AEO — Uninstall
+ * Uninstall — wipe all PerryLabs SEO data when the user deletes the plugin.
  *
- * Removes all plugin data from the database on uninstall.
- * Deletes plugin options and all per-post SEO meta fields.
- *
- * @package PerryLabs_SEO
+ * @package PerryLabs\SEO
  */
 
-// Abort if not called by WordPress uninstall process.
+declare( strict_types=1 );
+
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-/* ──────────────────────────────────────────────────────────────────────
- * Delete plugin options
- * ────────────────────────────────────────────────────────────────────── */
-
-delete_option( 'perrylabs_seo_options' );
-delete_transient( 'perrylabs_seo_robots_txt' );
-
-/* ──────────────────────────────────────────────────────────────────────
- * Delete all per-post SEO meta fields
- * ────────────────────────────────────────────────────────────────────── */
-
 global $wpdb;
 
-$meta_keys = array(
-	'_perrylabs_seo_title',
-	'_perrylabs_seo_description',
-	'_perrylabs_seo_canonical',
-	'_perrylabs_seo_noindex',
-	'_perrylabs_seo_nofollow',
-	'_perrylabs_seo_social_image',
-	'_perrylabs_seo_schema_type',
-	'_perrylabs_seo_alternate_urls',
-);
+// Settings + version markers.
+delete_option( 'plseo_options' );
+delete_option( 'plseo_db_version' );
+delete_option( 'plseo_indexnow_key' );
 
-foreach ( $meta_keys as $key ) {
-	$wpdb->delete(
-		$wpdb->postmeta,
-		array( 'meta_key' => $key ),
-		array( '%s' )
-	);
+// Custom tables.
+$tables = array(
+	$wpdb->prefix . 'plseo_redirects',
+	$wpdb->prefix . 'plseo_404_log',
+	$wpdb->prefix . 'plseo_ai_visits',
+);
+foreach ( $tables as $table ) {
+	$wpdb->query( "DROP TABLE IF EXISTS {$table}" ); // phpcs:ignore WordPress.DB
 }
 
-/* ──────────────────────────────────────────────────────────────────────
- * Flush rewrite rules to clean up sitemap endpoints
- * ────────────────────────────────────────────────────────────────────── */
+// Post meta we added (use direct query — there could be thousands).
+$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE '\\_plseo\\_%'" ); // phpcs:ignore WordPress.DB
 
-flush_rewrite_rules();
+// Transients (object cache + DB fallback).
+$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_plseo\\_%' OR option_name LIKE '\\_transient\\_timeout\\_plseo\\_%'" ); // phpcs:ignore WordPress.DB
+
+// Multisite: also wipe legacy v1 options if they survived migration.
+delete_option( 'perrylabs_seo_options' );
+
+// Flush rewrites — the rewrite endpoints we registered are gone now.
+delete_option( 'rewrite_rules' );

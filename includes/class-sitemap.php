@@ -1,316 +1,369 @@
 <?php
 /**
- * PerryLabs SEO + AEO — XML Sitemap
+ * PLSEO_Sitemap — sitemap index + per-type sub-sitemaps + image extensions.
  *
- * Auto-generates a sitemap index at /sitemap.xml with sub-sitemaps
- * for each configured post type and taxonomy. Uses rewrite rules
- * pointing to a virtual endpoint — no actual files on disk.
+ * URL layout:
+ *   /sitemap.xml                     → index referencing all sub-sitemaps
+ *   /sitemap-{post_type}.xml         → URLs of one post type (paginated to 500/page)
+ *   /sitemap-{post_type}-{page}.xml  → subsequent pages
+ *   /sitemap-tax-{taxonomy}.xml      → URLs of one taxonomy
+ *   /sitemap-author.xml              → author archives (when not noindexed)
  *
- * @package PerryLabs_SEO
+ * Disables WordPress core's wp_sitemaps so the two don't compete.
+ *
+ * @package PerryLabs\SEO
  */
+
+declare( strict_types=1 );
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class PerryLabs_SEO_Sitemap {
+final class PLSEO_Sitemap {
 
-	/** @var int Maximum URLs per sub-sitemap. */
-	private const URLS_PER_SITEMAP = 1000;
+	private static ?self $instance = null;
 
-	public function __construct() {
-		add_action( 'init', array( __CLASS__, 'register_rewrite_rules' ) );
-		add_filter( 'query_vars', array( $this, 'register_query_vars' ) );
-		add_action( 'template_redirect', array( $this, 'render_sitemap' ) );
+	private const PER_PAGE = 500;
 
-		// Disable the built-in WordPress sitemap (WP 5.5+).
+	public static function instance(): self {
+		return self::$instance ??= new self();
+	}
+
+	private function __construct() {}
+
+	public function boot(): void {
+		add_action( 'init', array( __CLASS__, 'register_rewrites' ) );
+		add_filter( 'query_vars', array( $this, 'filter_query_vars' ) );
+		add_action( 'template_redirect', array( $this, 'maybe_render' ) );
+
+		// Suppress WP core sitemaps to avoid conflict.
 		add_filter( 'wp_sitemaps_enabled', '__return_false' );
+
+		// Bust the index when content changes.
+		add_action( 'save_post', array( $this, 'bust_cache' ) );
+		add_action( 'deleted_post', array( $this, 'bust_cache' ) );
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Rewrite rules
-	 * ────────────────────────────────────────────────────────────── */
-
-	public static function register_rewrite_rules(): void {
-		// Main sitemap index.
-		add_rewrite_rule(
-			'^sitemap\.xml$',
-			'index.php?perrylabs_sitemap=index',
-			'top'
-		);
-
-		// Sub-sitemaps: post type.
-		add_rewrite_rule(
-			'^sitemap-([a-z0-9_-]+)-?(\d*)\.xml$',
-			'index.php?perrylabs_sitemap=posts&perrylabs_sitemap_type=$matches[1]&perrylabs_sitemap_page=$matches[2]',
-			'top'
-		);
-
-		// Sub-sitemaps: taxonomy.
-		add_rewrite_rule(
-			'^sitemap-tax-([a-z0-9_-]+)\.xml$',
-			'index.php?perrylabs_sitemap=taxonomy&perrylabs_sitemap_tax=$matches[1]',
-			'top'
-		);
+	public static function register_rewrites(): void {
+		add_rewrite_rule( '^sitemap\.xml$', 'index.php?plseo_sitemap=index', 'top' );
+		add_rewrite_rule( '^sitemap-tax-([^/]+)\.xml$', 'index.php?plseo_sitemap=tax&plseo_sitemap_obj=$matches[1]', 'top' );
+		add_rewrite_rule( '^sitemap-author\.xml$', 'index.php?plseo_sitemap=author', 'top' );
+		add_rewrite_rule( '^sitemap-([a-z0-9_\-]+)-(\d+)\.xml$', 'index.php?plseo_sitemap=type&plseo_sitemap_obj=$matches[1]&plseo_sitemap_page=$matches[2]', 'top' );
+		add_rewrite_rule( '^sitemap-([a-z0-9_\-]+)\.xml$', 'index.php?plseo_sitemap=type&plseo_sitemap_obj=$matches[1]&plseo_sitemap_page=1', 'top' );
 	}
 
-	public function register_query_vars( array $vars ): array {
-		$vars[] = 'perrylabs_sitemap';
-		$vars[] = 'perrylabs_sitemap_type';
-		$vars[] = 'perrylabs_sitemap_tax';
-		$vars[] = 'perrylabs_sitemap_page';
+	public function filter_query_vars( array $vars ): array {
+		$vars[] = 'plseo_sitemap';
+		$vars[] = 'plseo_sitemap_obj';
+		$vars[] = 'plseo_sitemap_page';
 		return $vars;
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Render sitemap
-	 * ────────────────────────────────────────────────────────────── */
-
-	public function render_sitemap(): void {
-		$sitemap = get_query_var( 'perrylabs_sitemap' );
-		if ( ! $sitemap ) {
+	public function maybe_render(): void {
+		$which = (string) get_query_var( 'plseo_sitemap' );
+		if ( '' === $which ) {
 			return;
 		}
-
-		// Set XML headers.
-		header( 'Content-Type: application/xml; charset=UTF-8' );
-		header( 'X-Robots-Tag: noindex' );
-
-		switch ( $sitemap ) {
-			case 'index':
-				echo $this->generate_index();
-				break;
-
-			case 'posts':
-				$post_type = get_query_var( 'perrylabs_sitemap_type', 'post' );
-				$page      = max( 1, (int) get_query_var( 'perrylabs_sitemap_page', 1 ) );
-				echo $this->generate_post_type_sitemap( $post_type, $page );
-				break;
-
-			case 'taxonomy':
-				$taxonomy = get_query_var( 'perrylabs_sitemap_tax', '' );
-				echo $this->generate_taxonomy_sitemap( $taxonomy );
-				break;
-
-			default:
-				status_header( 404 );
-				echo '<?xml version="1.0" encoding="UTF-8"?><error>Not found</error>';
-				break;
+		if ( ! (bool) PLSEO_Options::get( 'sitemap_enabled', true ) ) {
+			status_header( 404 );
+			nocache_headers();
+			exit;
 		}
 
+		nocache_headers();
+		header( 'Content-Type: application/xml; charset=' . get_bloginfo( 'charset' ) );
+
+		switch ( $which ) {
+			case 'index':
+				echo $this->render_index(); // phpcs:ignore WordPress.Security.EscapeOutput
+				break;
+			case 'type':
+				echo $this->render_type( (string) get_query_var( 'plseo_sitemap_obj' ), max( 1, (int) get_query_var( 'plseo_sitemap_page' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput
+				break;
+			case 'tax':
+				echo $this->render_taxonomy( (string) get_query_var( 'plseo_sitemap_obj' ) ); // phpcs:ignore WordPress.Security.EscapeOutput
+				break;
+			case 'author':
+				echo $this->render_authors(); // phpcs:ignore WordPress.Security.EscapeOutput
+				break;
+			default:
+				status_header( 404 );
+		}
 		exit;
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Sitemap Index
-	 * ────────────────────────────────────────────────────────────── */
+	/* ───────────────────────── INDEX ───────────────────────── */
 
-	private function generate_index(): string {
-		$output  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-		$output .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+	private function render_index(): string {
+		$entries     = array();
+		$post_types  = $this->configured_post_types();
+		$taxonomies  = $this->configured_taxonomies();
 
-		// Post type sub-sitemaps.
-		$post_types = $this->get_sitemap_post_types();
-		foreach ( $post_types as $post_type ) {
-			$count = $this->count_posts( $post_type );
-			$pages = max( 1, (int) ceil( $count / self::URLS_PER_SITEMAP ) );
-
+		foreach ( $post_types as $type ) {
+			$count = $this->count_published( $type );
+			if ( $count < 1 ) {
+				continue;
+			}
+			$pages = (int) ceil( $count / self::PER_PAGE );
 			for ( $page = 1; $page <= $pages; $page++ ) {
-				$suffix = $pages > 1 ? '-' . $page : '';
-				$output .= '<sitemap>' . "\n";
-				$output .= '  <loc>' . esc_url( home_url( '/sitemap-' . $post_type . $suffix . '.xml' ) ) . '</loc>' . "\n";
-				$output .= '  <lastmod>' . $this->get_last_modified_date( $post_type ) . '</lastmod>' . "\n";
-				$output .= '</sitemap>' . "\n";
+				$slug      = 1 === $page ? $type : "{$type}-{$page}";
+				$entries[] = array(
+					'loc'     => home_url( "/sitemap-{$slug}.xml" ),
+					'lastmod' => $this->latest_modified( $type ),
+				);
 			}
 		}
 
-		// Taxonomy sub-sitemaps.
-		$taxonomies = $this->get_sitemap_taxonomies();
-		foreach ( $taxonomies as $taxonomy ) {
-			$terms = get_terms( array(
-				'taxonomy'   => $taxonomy,
-				'hide_empty' => true,
-				'number'     => 1,
-			) );
-
-			if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
-				$output .= '<sitemap>' . "\n";
-				$output .= '  <loc>' . esc_url( home_url( '/sitemap-tax-' . $taxonomy . '.xml' ) ) . '</loc>' . "\n";
-				$output .= '</sitemap>' . "\n";
+		foreach ( $taxonomies as $tax ) {
+			if ( $this->count_taxonomy_terms( $tax ) > 0 ) {
+				$entries[] = array(
+					'loc'     => home_url( "/sitemap-tax-{$tax}.xml" ),
+					'lastmod' => current_time( 'c', true ),
+				);
 			}
 		}
 
-		$output .= '</sitemapindex>';
+		if ( ! (bool) PLSEO_Options::get( 'noindex_authors', true ) ) {
+			$entries[] = array(
+				'loc'     => home_url( '/sitemap-author.xml' ),
+				'lastmod' => current_time( 'c', true ),
+			);
+		}
 
-		return $output;
+		$xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+		$xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+		foreach ( $entries as $e ) {
+			$xml .= "\t<sitemap>\n";
+			$xml .= "\t\t<loc>" . esc_url( $e['loc'] ) . "</loc>\n";
+			$xml .= "\t\t<lastmod>" . esc_html( $e['lastmod'] ) . "</lastmod>\n";
+			$xml .= "\t</sitemap>\n";
+		}
+		$xml .= '</sitemapindex>' . "\n";
+		return $xml;
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Post type sitemap
-	 * ────────────────────────────────────────────────────────────── */
+	/* ───────────────────────── POST-TYPE PAGE ───────────────────────── */
 
-	private function generate_post_type_sitemap( string $post_type, int $page = 1 ): string {
-		$output  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-		$output .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";
-		$output .= '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
-
-		// Front page.
-		if ( $post_type === 'page' && $page === 1 ) {
-			$output .= '<url>' . "\n";
-			$output .= '  <loc>' . esc_url( home_url( '/' ) ) . '</loc>' . "\n";
-			$output .= '  <changefreq>daily</changefreq>' . "\n";
-			$output .= '  <priority>1.0</priority>' . "\n";
-			$output .= '</url>' . "\n";
+	private function render_type( string $type, int $page ): string {
+		if ( ! in_array( $type, $this->configured_post_types(), true ) ) {
+			status_header( 404 );
+			return '';
 		}
+		$exclude = (array) PLSEO_Options::get( 'sitemap_exclude_ids', array() );
 
-		$offset = ( $page - 1 ) * self::URLS_PER_SITEMAP;
-
-		$posts = get_posts( array(
-			'post_type'      => $post_type,
+		$args = array(
+			'post_type'      => $type,
 			'post_status'    => 'publish',
-			'posts_per_page' => self::URLS_PER_SITEMAP,
-			'offset'         => $offset,
+			'posts_per_page' => self::PER_PAGE,
+			'paged'          => $page,
 			'orderby'        => 'modified',
 			'order'          => 'DESC',
+			'no_found_rows'  => false,
+			'post__not_in'   => array_map( 'intval', $exclude ),
 			'meta_query'     => array(
 				'relation' => 'OR',
 				array(
-					'key'     => '_perrylabs_seo_noindex',
+					'key'     => '_plseo_noindex',
 					'compare' => 'NOT EXISTS',
 				),
 				array(
-					'key'     => '_perrylabs_seo_noindex',
+					'key'     => '_plseo_noindex',
 					'value'   => '1',
 					'compare' => '!=',
 				),
 			),
-			'no_found_rows'          => true,
-			'update_post_meta_cache' => true,
-			'update_post_term_cache' => false,
-		) );
+		);
+		$q = new \WP_Query( $args );
 
-		foreach ( $posts as $post ) {
-			$permalink = get_permalink( $post );
-			$modified  = get_the_modified_date( 'c', $post );
+		$include_images = (bool) PLSEO_Options::get( 'sitemap_include_images', true );
 
-			// Priority based on post type.
-			$priority = match ( $post->post_type ) {
-				'page'                => '0.8',
-				'biobuzz_news'        => '0.7',
-				'biobuzz_event'       => '0.7',
-				'biobuzz_contributor' => '0.5',
-				default               => '0.6',
-			};
-
-			$output .= '<url>' . "\n";
-			$output .= '  <loc>' . esc_url( $permalink ) . '</loc>' . "\n";
-			$output .= '  <lastmod>' . esc_html( $modified ) . '</lastmod>' . "\n";
-			$output .= '  <priority>' . $priority . '</priority>' . "\n";
-
-			// Include featured image.
-			$image_url = get_the_post_thumbnail_url( $post->ID, 'large' );
-			if ( $image_url ) {
-				$output .= '  <image:image>' . "\n";
-				$output .= '    <image:loc>' . esc_url( $image_url ) . '</image:loc>' . "\n";
-				$image_title = get_post_meta( get_post_thumbnail_id( $post->ID ), '_wp_attachment_image_alt', true ) ?: $post->post_title;
-				$output .= '    <image:title>' . esc_html( $image_title ) . '</image:title>' . "\n";
-				$output .= '  </image:image>' . "\n";
-			}
-
-			$output .= '</url>' . "\n";
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+		$xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"';
+		if ( $include_images ) {
+			$xml .= ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"';
 		}
+		$xml .= '>' . "\n";
 
-		$output .= '</urlset>';
-
-		return $output;
-	}
-
-	/* ──────────────────────────────────────────────────────────────
-	 * Taxonomy sitemap
-	 * ────────────────────────────────────────────────────────────── */
-
-	private function generate_taxonomy_sitemap( string $taxonomy ): string {
-		$output  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-		$output .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-
-		$terms = get_terms( array(
-			'taxonomy'   => $taxonomy,
-			'hide_empty' => true,
-			'number'     => self::URLS_PER_SITEMAP,
-		) );
-
-		if ( is_wp_error( $terms ) ) {
-			$output .= '</urlset>';
-			return $output;
-		}
-
-		foreach ( $terms as $term ) {
-			$term_link = get_term_link( $term );
-			if ( is_wp_error( $term_link ) ) {
+		while ( $q->have_posts() ) {
+			$q->the_post();
+			$post = get_post();
+			if ( ! $post instanceof \WP_Post ) {
 				continue;
 			}
+			$xml .= "\t<url>\n";
+			$xml .= "\t\t<loc>" . esc_url( (string) get_permalink( $post ) ) . "</loc>\n";
+			$xml .= "\t\t<lastmod>" . esc_html( (string) get_the_modified_date( 'c', $post ) ) . "</lastmod>\n";
+			$xml .= "\t\t<changefreq>" . esc_html( $this->guess_changefreq( $post ) ) . "</changefreq>\n";
+			$xml .= "\t\t<priority>" . esc_html( $this->guess_priority( $post ) ) . "</priority>\n";
 
-			$output .= '<url>' . "\n";
-			$output .= '  <loc>' . esc_url( $term_link ) . '</loc>' . "\n";
-			$output .= '</url>' . "\n";
+			if ( $include_images ) {
+				foreach ( $this->collect_post_images( $post ) as $img ) {
+					$xml .= "\t\t<image:image>\n";
+					$xml .= "\t\t\t<image:loc>" . esc_url( $img ) . "</image:loc>\n";
+					$xml .= "\t\t</image:image>\n";
+				}
+			}
+
+			$xml .= "\t</url>\n";
 		}
-
-		$output .= '</urlset>';
-
-		return $output;
+		wp_reset_postdata();
+		$xml .= '</urlset>' . "\n";
+		return $xml;
 	}
 
-	/* ──────────────────────────────────────────────────────────────
-	 * Helpers
-	 * ────────────────────────────────────────────────────────────── */
+	/* ───────────────────────── TAXONOMY ───────────────────────── */
 
-	private function get_sitemap_post_types(): array {
-		$configured = perrylabs_seo_get_option( 'sitemap_post_types', array( 'post', 'page' ) );
-
-		/**
-		 * Filter the post types included in the XML sitemap.
-		 *
-		 * @param string[] $post_types Array of post type slugs.
-		 */
-		$configured = apply_filters( 'perrylabs_seo_sitemap_post_types', $configured );
-
-		return array_filter( $configured, function ( $pt ) {
-			return post_type_exists( $pt );
-		} );
-	}
-
-	private function get_sitemap_taxonomies(): array {
-		$configured = perrylabs_seo_get_option( 'sitemap_taxonomies', array( 'category', 'post_tag' ) );
-
-		/**
-		 * Filter the taxonomies included in the XML sitemap.
-		 *
-		 * @param string[] $taxonomies Array of taxonomy slugs.
-		 */
-		$configured = apply_filters( 'perrylabs_seo_sitemap_taxonomies', $configured );
-
-		return array_filter( $configured, function ( $tax ) {
-			return taxonomy_exists( $tax );
-		} );
-	}
-
-	private function count_posts( string $post_type ): int {
-		$counts = wp_count_posts( $post_type );
-		return (int) ( $counts->publish ?? 0 );
-	}
-
-	private function get_last_modified_date( string $post_type ): string {
-		global $wpdb;
-
-		$date = $wpdb->get_var( $wpdb->prepare(
-			"SELECT post_modified_gmt FROM {$wpdb->posts} WHERE post_type = %s AND post_status = 'publish' ORDER BY post_modified_gmt DESC LIMIT 1",
-			$post_type
+	private function render_taxonomy( string $tax ): string {
+		if ( ! in_array( $tax, $this->configured_taxonomies(), true ) ) {
+			status_header( 404 );
+			return '';
+		}
+		$terms = get_terms( array(
+			'taxonomy'   => $tax,
+			'hide_empty' => true,
 		) );
 
-		if ( $date ) {
-			return gmdate( 'c', strtotime( $date ) );
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+		$xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+		if ( ! is_wp_error( $terms ) ) {
+			foreach ( $terms as $term ) {
+				$link = get_term_link( $term );
+				if ( is_wp_error( $link ) ) {
+					continue;
+				}
+				$xml .= "\t<url>\n";
+				$xml .= "\t\t<loc>" . esc_url( (string) $link ) . "</loc>\n";
+				$xml .= "\t\t<changefreq>weekly</changefreq>\n";
+				$xml .= "\t</url>\n";
+			}
 		}
+		$xml .= '</urlset>' . "\n";
+		return $xml;
+	}
 
-		return gmdate( 'c' );
+	/* ───────────────────────── AUTHOR ───────────────────────── */
+
+	private function render_authors(): string {
+		$users = get_users( array(
+			'has_published_posts' => true,
+			'fields'              => array( 'ID' ),
+		) );
+
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+		$xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+		foreach ( $users as $u ) {
+			$xml .= "\t<url>\n";
+			$xml .= "\t\t<loc>" . esc_url( (string) get_author_posts_url( (int) $u->ID ) ) . "</loc>\n";
+			$xml .= "\t\t<changefreq>weekly</changefreq>\n";
+			$xml .= "\t</url>\n";
+		}
+		$xml .= '</urlset>' . "\n";
+		return $xml;
+	}
+
+	/* ───────────────────────── helpers ───────────────────────── */
+
+	/** @return array<int,string> */
+	private function configured_post_types(): array {
+		$set = (array) PLSEO_Options::get( 'sitemap_post_types', array( 'post', 'page' ) );
+		/**
+		 * Filter the post types included in sitemap output.
+		 *
+		 * @param array<int,string> $set
+		 */
+		return array_values( array_filter( (array) apply_filters( 'plseo_sitemap_post_types', $set ) ) );
+	}
+
+	/** @return array<int,string> */
+	private function configured_taxonomies(): array {
+		$set = (array) PLSEO_Options::get( 'sitemap_taxonomies', array( 'category', 'post_tag' ) );
+		/**
+		 * Filter the taxonomies included in sitemap output.
+		 *
+		 * @param array<int,string> $set
+		 */
+		return array_values( array_filter( (array) apply_filters( 'plseo_sitemap_taxonomies', $set ) ) );
+	}
+
+	private function count_published( string $post_type ): int {
+		$counts = wp_count_posts( $post_type );
+		return $counts && isset( $counts->publish ) ? (int) $counts->publish : 0;
+	}
+
+	private function count_taxonomy_terms( string $tax ): int {
+		$n = wp_count_terms( array( 'taxonomy' => $tax, 'hide_empty' => true ) );
+		return is_wp_error( $n ) ? 0 : (int) $n;
+	}
+
+	private function latest_modified( string $post_type ): string {
+		$cache_key = 'plseo_last_mod_' . md5( $post_type );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return (string) $cached;
+		}
+		$q = new \WP_Query( array(
+			'post_type'      => $post_type,
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'orderby'        => 'modified',
+			'order'          => 'DESC',
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		) );
+		if ( empty( $q->posts ) ) {
+			$result = current_time( 'c', true );
+		} else {
+			$result = (string) get_the_modified_date( 'c', (int) $q->posts[0] );
+		}
+		set_transient( $cache_key, $result, HOUR_IN_SECONDS );
+		return $result;
+	}
+
+	private function guess_changefreq( \WP_Post $post ): string {
+		$age_days = ( time() - get_post_time( 'U', true, $post ) ) / DAY_IN_SECONDS;
+		if ( $age_days < 7 )  return 'daily';
+		if ( $age_days < 60 ) return 'weekly';
+		if ( $age_days < 365 ) return 'monthly';
+		return 'yearly';
+	}
+
+	private function guess_priority( \WP_Post $post ): string {
+		if ( 'page' === $post->post_type && get_option( 'page_on_front' ) === (string) $post->ID ) {
+			return '1.0';
+		}
+		if ( 'page' === $post->post_type ) {
+			return '0.8';
+		}
+		$age_days = ( time() - get_post_time( 'U', true, $post ) ) / DAY_IN_SECONDS;
+		if ( $age_days < 30 )  return '0.9';
+		if ( $age_days < 365 ) return '0.6';
+		return '0.4';
+	}
+
+	/**
+	 * @return array<int,string>
+	 */
+	private function collect_post_images( \WP_Post $post ): array {
+		$urls    = array();
+		$thumb   = get_the_post_thumbnail_url( $post, 'full' );
+		if ( is_string( $thumb ) && '' !== $thumb ) {
+			$urls[] = $thumb;
+		}
+		// Pull <img src> from rendered content; cap at 5 to keep XML compact.
+		$rendered = (string) apply_filters( 'the_content', $post->post_content );
+		if ( preg_match_all( '#<img[^>]+src=["\']([^"\']+)["\']#i', $rendered, $m ) ) {
+			foreach ( array_slice( $m[1], 0, 5 ) as $u ) {
+				if ( ! in_array( $u, $urls, true ) ) {
+					$urls[] = $u;
+				}
+			}
+		}
+		return $urls;
+	}
+
+	public function bust_cache(): void {
+		global $wpdb;
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_plseo\\_last\\_mod\\_%' OR option_name LIKE '\\_transient\\_timeout\\_plseo\\_last\\_mod\\_%'" ); // phpcs:ignore WordPress.DB
 	}
 }
