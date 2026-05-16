@@ -69,3 +69,128 @@
 .plseo-link-suggestions li {
 	margin-bottom: 4px;
 }
+
+/* SERP / X / FB snippet previews */
+.plseo-preview-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: 16px;
+	margin: 8px 0 12px;
+}
+.plseo-preview h4 {
+	margin: 0 0 6px;
+	font-size: 11px;
+	color: #646970;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+}
+
+.plseo-snip {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	overflow: hidden;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Google */
+.plseo-snip--google {
+	padding: 14px 16px;
+}
+.plseo-snip--google .plseo-snip__site {
+	font-size: 12px;
+	color: #4d5156;
+	margin-bottom: 4px;
+}
+.plseo-snip--google .plseo-snip__title {
+	display: block;
+	color: #1a0dab;
+	font-size: 18px;
+	line-height: 1.3;
+	text-decoration: none;
+	margin-bottom: 4px;
+}
+.plseo-snip--google .plseo-snip__desc {
+	color: #4d5156;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+/* X / Twitter */
+.plseo-snip--x .plseo-snip__img {
+	width: 100%;
+	height: 160px;
+	background: #f5f5f5 center/cover no-repeat;
+}
+.plseo-snip--x.plseo-snip--x-summary .plseo-snip__img {
+	height: 0;
+	padding-bottom: 50%;
+}
+.plseo-snip--x .plseo-snip__img--empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #8c8c8c;
+	font-size: 12px;
+}
+.plseo-snip--x .plseo-snip__body {
+	padding: 10px 12px 12px;
+}
+.plseo-snip--x .plseo-snip__url {
+	color: #536471;
+	font-size: 12px;
+}
+.plseo-snip--x .plseo-snip__title {
+	font-size: 14px;
+	font-weight: 600;
+	margin: 2px 0;
+	color: #0f1419;
+}
+.plseo-snip--x .plseo-snip__desc {
+	font-size: 12px;
+	color: #536471;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* Facebook / LinkedIn */
+.plseo-snip--fb .plseo-snip__img {
+	width: 100%;
+	height: 200px;
+	background: #ebedf0 center/cover no-repeat;
+}
+.plseo-snip--fb .plseo-snip__img--empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #65676b;
+	font-size: 12px;
+}
+.plseo-snip--fb .plseo-snip__body {
+	padding: 10px 12px 12px;
+	background: #f0f2f5;
+}
+.plseo-snip--fb .plseo-snip__url--fb {
+	color: #65676b;
+	font-size: 12px;
+	letter-spacing: 0.4px;
+	margin-bottom: 4px;
+}
+.plseo-snip--fb .plseo-snip__title {
+	color: #050505;
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.3;
+	margin-bottom: 4px;
+}
+.plseo-snip--fb .plseo-snip__desc {
+	color: #65676b;
+	font-size: 13px;
+	line-height: 1.4;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}

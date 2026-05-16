@@ -4,7 +4,7 @@ Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, jso
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.1
-Stable tag: 2.0.0
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,21 @@ The schema graph builder accepts custom contributors via plseo_register_schema_c
 
 == Changelog ==
 
+= 2.1.0 =
+Feature pass to close gaps against Semrush + RankMath Pro:
+
+* Site audit screen — Semrush-style aggregate health report with errors / warnings / notices, "Fix" links into post editor.
+* Schema display rules — first-match engine, per-post-type + per-taxonomy term, emit multiple schema types per post.
+* Live SERP / X / Facebook snippet preview in the meta box that updates as you type.
+* News sitemap (/sitemap-news.xml) — Google-News-spec, posts from the last 48h.
+* Video sitemap (/sitemap-videos.xml) — auto-detects YouTube, Vimeo, native <video>.
+* Cornerstone content marker — bumps sitemap priority to 1.0 and auto-includes in /llms.txt featured.
+* Multiple focus keywords — comma-separated, each scored independently against title, URL, headings, density.
+* Flesch-Kincaid readability score in the per-post analyzer.
+* Internal-link graph — outbound links cached per post on save; inbound count and orphan detection in the analyzer and audit.
+* Image SEO module — auto-alt fallback at render time, optional upload-slug optimization (DSC_4523.jpg → founders-portrait.jpg).
+* Refactor: PLSEO_Str helper consolidates 5 duplicated clip()/language()/normalize() implementations. class-admin.php split into 5 focused files (menu router + actions + 3 screen renderers). No file in the codebase exceeds ~550 LOC.
+
 = 2.0.0 =
 Major rewrite. Codename "Signal Boost." Everything new:
 
@@ -119,6 +134,9 @@ Major rewrite. Codename "Signal Boost." Everything new:
 Last v1 release. Preserved on the `v1-archive` git branch.
 
 == Upgrade Notice ==
+
+= 2.1.0 =
+Adds site audit, schema display rules, live SERP preview, news + video sitemaps, multi-keyword analysis, cornerstone marker, image SEO, internal-link graph. No data migration needed.
 
 = 2.0.0 =
 Major rewrite. Activation migrates v1 data automatically. AEO features are new — visit the AEO tab after upgrading.

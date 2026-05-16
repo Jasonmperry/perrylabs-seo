@@ -73,6 +73,10 @@ final class PLSEO_Options {
 			'sitemap_taxonomies'     => array( 'category', 'post_tag' ),
 			'sitemap_include_images' => true,
 			'sitemap_include_videos' => false,
+			'sitemap_news_enabled'   => false,
+			'sitemap_news_post_types'  => array( 'post' ),
+			'sitemap_news_publication' => '',
+			'sitemap_video_enabled'  => false,
 			'sitemap_exclude_ids'    => array(),
 
 			// ── Schema / Business ─────────────────────────────────
@@ -94,6 +98,7 @@ final class PLSEO_Options {
 				'post' => 'Article',
 				'page' => 'WebPage',
 			),
+			'schema_rules'            => array(),
 
 			// ── Redirects ─────────────────────────────────────────
 			'redirects_log_404s'     => true,
@@ -121,6 +126,10 @@ final class PLSEO_Options {
 			// ── IndexNow ──────────────────────────────────────────
 			'indexnow_enabled'       => false,
 			'indexnow_engines'       => array( 'bing', 'yandex' ),
+
+			// ── Image SEO ──────────────────────────────────────────
+			'image_auto_alt'             => true,
+			'image_optimize_upload_slug' => false,
 
 			// ── Advanced ──────────────────────────────────────────
 			'noindex_archives'       => false,

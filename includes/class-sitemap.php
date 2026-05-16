@@ -46,9 +46,11 @@ final class PLSEO_Sitemap {
 	}
 
 	public static function register_rewrites(): void {
-		add_rewrite_rule( '^sitemap\.xml$', 'index.php?plseo_sitemap=index', 'top' );
+		add_rewrite_rule( '^sitemap\.xml$',            'index.php?plseo_sitemap=index',  'top' );
+		add_rewrite_rule( '^sitemap-news\.xml$',       'index.php?plseo_sitemap=news',   'top' );
+		add_rewrite_rule( '^sitemap-videos\.xml$',     'index.php?plseo_sitemap=videos', 'top' );
 		add_rewrite_rule( '^sitemap-tax-([^/]+)\.xml$', 'index.php?plseo_sitemap=tax&plseo_sitemap_obj=$matches[1]', 'top' );
-		add_rewrite_rule( '^sitemap-author\.xml$', 'index.php?plseo_sitemap=author', 'top' );
+		add_rewrite_rule( '^sitemap-author\.xml$',     'index.php?plseo_sitemap=author', 'top' );
 		add_rewrite_rule( '^sitemap-([a-z0-9_\-]+)-(\d+)\.xml$', 'index.php?plseo_sitemap=type&plseo_sitemap_obj=$matches[1]&plseo_sitemap_page=$matches[2]', 'top' );
 		add_rewrite_rule( '^sitemap-([a-z0-9_\-]+)\.xml$', 'index.php?plseo_sitemap=type&plseo_sitemap_obj=$matches[1]&plseo_sitemap_page=1', 'top' );
 	}
@@ -86,6 +88,12 @@ final class PLSEO_Sitemap {
 				break;
 			case 'author':
 				echo $this->render_authors(); // phpcs:ignore WordPress.Security.EscapeOutput
+				break;
+			case 'news':
+				echo $this->render_news(); // phpcs:ignore WordPress.Security.EscapeOutput
+				break;
+			case 'videos':
+				echo $this->render_videos(); // phpcs:ignore WordPress.Security.EscapeOutput
 				break;
 			default:
 				status_header( 404 );
@@ -127,6 +135,20 @@ final class PLSEO_Sitemap {
 		if ( ! (bool) PLSEO_Options::get( 'noindex_authors', true ) ) {
 			$entries[] = array(
 				'loc'     => home_url( '/sitemap-author.xml' ),
+				'lastmod' => current_time( 'c', true ),
+			);
+		}
+
+		if ( (bool) PLSEO_Options::get( 'sitemap_news_enabled', false ) ) {
+			$entries[] = array(
+				'loc'     => home_url( '/sitemap-news.xml' ),
+				'lastmod' => current_time( 'c', true ),
+			);
+		}
+
+		if ( (bool) PLSEO_Options::get( 'sitemap_video_enabled', false ) ) {
+			$entries[] = array(
+				'loc'     => home_url( '/sitemap-videos.xml' ),
 				'lastmod' => current_time( 'c', true ),
 			);
 		}
@@ -262,6 +284,157 @@ final class PLSEO_Sitemap {
 		return $xml;
 	}
 
+	/* ───────────────────────── NEWS (Google News) ───────────────────────── */
+
+	/**
+	 * Google News sitemap. Per Google's spec, only includes articles published
+	 * within the last 48 hours. Empty when nothing fresh exists — that's correct
+	 * and won't trigger an error in Search Console.
+	 */
+	private function render_news(): string {
+		if ( ! (bool) PLSEO_Options::get( 'sitemap_news_enabled', false ) ) {
+			status_header( 404 );
+			return '';
+		}
+		$types       = (array) PLSEO_Options::get( 'sitemap_news_post_types', array( 'post' ) );
+		$publication = trim( (string) PLSEO_Options::get( 'sitemap_news_publication', '' ) );
+		if ( '' === $publication ) {
+			$publication = (string) get_bloginfo( 'name' );
+		}
+		$language = (string) get_locale();
+		$language = $language !== '' ? substr( str_replace( '_', '-', $language ), 0, 2 ) : 'en';
+
+		$q = new \WP_Query( array(
+			'post_type'      => $types,
+			'post_status'    => 'publish',
+			'posts_per_page' => 1000, // Google's documented cap.
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+			'date_query'     => array( array( 'after' => '48 hours ago' ) ),
+			'no_found_rows'  => true,
+			'meta_query'     => array(
+				'relation' => 'OR',
+				array( 'key' => '_plseo_noindex', 'compare' => 'NOT EXISTS' ),
+				array( 'key' => '_plseo_noindex', 'value' => '1', 'compare' => '!=' ),
+			),
+		) );
+
+		$xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+		$xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";
+		$xml .= '        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">' . "\n";
+
+		foreach ( $q->posts as $post ) {
+			if ( ! $post instanceof \WP_Post ) {
+				continue;
+			}
+			$xml .= "\t<url>\n";
+			$xml .= "\t\t<loc>" . esc_url( (string) get_permalink( $post ) ) . "</loc>\n";
+			$xml .= "\t\t<news:news>\n";
+			$xml .= "\t\t\t<news:publication>\n";
+			$xml .= "\t\t\t\t<news:name>" . esc_html( $publication ) . "</news:name>\n";
+			$xml .= "\t\t\t\t<news:language>" . esc_html( $language ) . "</news:language>\n";
+			$xml .= "\t\t\t</news:publication>\n";
+			$xml .= "\t\t\t<news:publication_date>" . esc_html( (string) get_the_date( 'c', $post ) ) . "</news:publication_date>\n";
+			$xml .= "\t\t\t<news:title>" . esc_html( (string) get_the_title( $post ) ) . "</news:title>\n";
+			$xml .= "\t\t</news:news>\n";
+			$xml .= "\t</url>\n";
+		}
+		$xml .= '</urlset>' . "\n";
+		return $xml;
+	}
+
+	/* ───────────────────────── VIDEOS ───────────────────────── */
+
+	/**
+	 * Video sitemap. Includes any post in a configured post type that contains
+	 * a recognized video URL (YouTube/Vimeo/native <video>) or has a per-post
+	 * `_plseo_video_url` override. Schema metadata mirrors PLSEO_Schema_Content.
+	 */
+	private function render_videos(): string {
+		if ( ! (bool) PLSEO_Options::get( 'sitemap_video_enabled', false ) ) {
+			status_header( 404 );
+			return '';
+		}
+		$types = $this->configured_post_types();
+
+		$q = new \WP_Query( array(
+			'post_type'      => $types,
+			'post_status'    => 'publish',
+			'posts_per_page' => 2000,
+			'orderby'        => 'modified',
+			'order'          => 'DESC',
+			'no_found_rows'  => true,
+			'meta_query'     => array(
+				'relation' => 'OR',
+				array( 'key' => '_plseo_noindex', 'compare' => 'NOT EXISTS' ),
+				array( 'key' => '_plseo_noindex', 'value' => '1', 'compare' => '!=' ),
+			),
+		) );
+
+		$xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+		$xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";
+		$xml .= '        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">' . "\n";
+
+		foreach ( $q->posts as $post ) {
+			if ( ! $post instanceof \WP_Post ) {
+				continue;
+			}
+			$video_url = $this->detect_video_url( $post );
+			if ( '' === $video_url ) {
+				continue;
+			}
+			$thumb = $this->detect_video_thumb( $post, $video_url );
+			$desc  = trim( (string) $post->post_excerpt );
+			if ( '' === $desc ) {
+				$desc = wp_strip_all_tags( (string) get_the_title( $post ) );
+			}
+
+			$xml .= "\t<url>\n";
+			$xml .= "\t\t<loc>" . esc_url( (string) get_permalink( $post ) ) . "</loc>\n";
+			$xml .= "\t\t<video:video>\n";
+			if ( '' !== $thumb ) {
+				$xml .= "\t\t\t<video:thumbnail_loc>" . esc_url( $thumb ) . "</video:thumbnail_loc>\n";
+			}
+			$xml .= "\t\t\t<video:title>" . esc_html( (string) get_the_title( $post ) ) . "</video:title>\n";
+			$xml .= "\t\t\t<video:description>" . esc_html( mb_substr( $desc, 0, 2000 ) ) . "</video:description>\n";
+			$xml .= "\t\t\t<video:content_loc>" . esc_url( $video_url ) . "</video:content_loc>\n";
+			$xml .= "\t\t\t<video:publication_date>" . esc_html( (string) get_the_date( 'c', $post ) ) . "</video:publication_date>\n";
+			$xml .= "\t\t</video:video>\n";
+			$xml .= "\t</url>\n";
+		}
+		$xml .= '</urlset>' . "\n";
+		return $xml;
+	}
+
+	private function detect_video_url( \WP_Post $post ): string {
+		$override = (string) get_post_meta( $post->ID, '_plseo_video_url', true );
+		if ( '' !== $override ) {
+			return $override;
+		}
+		$content = (string) $post->post_content;
+		if ( preg_match( '#https?://(?:www\.)?(?:youtube\.com/watch\?v=[\w\-]+|youtu\.be/[\w\-]+|vimeo\.com/\d+)#i', $content, $m ) ) {
+			return $m[0];
+		}
+		if ( preg_match( '/<video[^>]+src=["\']([^"\']+)["\']/i', $content, $m ) ) {
+			return $m[1];
+		}
+		return '';
+	}
+
+	private function detect_video_thumb( \WP_Post $post, string $video_url ): string {
+		if ( preg_match( '#youtu(?:\.be/|be\.com/watch\?v=)([\w\-]+)#i', $video_url, $m ) ) {
+			return sprintf( 'https://img.youtube.com/vi/%s/hqdefault.jpg', $m[1] );
+		}
+		$thumb_id = (int) get_post_thumbnail_id( $post );
+		if ( $thumb_id ) {
+			$src = wp_get_attachment_image_src( $thumb_id, 'full' );
+			if ( $src ) {
+				return (string) $src[0];
+			}
+		}
+		return '';
+	}
+
 	/* ───────────────────────── helpers ───────────────────────── */
 
 	/** @return array<int,string> */
@@ -329,6 +502,10 @@ final class PLSEO_Sitemap {
 	}
 
 	private function guess_priority( \WP_Post $post ): string {
+		// Cornerstone-marked posts always take the top slot.
+		if ( '1' === (string) get_post_meta( $post->ID, '_plseo_cornerstone', true ) ) {
+			return '1.0';
+		}
 		if ( 'page' === $post->post_type && get_option( 'page_on_front' ) === (string) $post->ID ) {
 			return '1.0';
 		}

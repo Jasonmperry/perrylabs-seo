@@ -218,11 +218,6 @@ final class PLSEO_Schema_Types {
 	}
 
 	private static function language(): string {
-		$opt = trim( (string) PLSEO_Options::get( 'site_language', '' ) );
-		if ( '' !== $opt ) {
-			return $opt;
-		}
-		$locale = (string) get_locale();
-		return $locale !== '' ? str_replace( '_', '-', $locale ) : 'en';
+		return PLSEO_Str::site_language();
 	}
 }

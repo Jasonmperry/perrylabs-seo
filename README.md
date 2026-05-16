@@ -1,6 +1,6 @@
 # PerryLabs SEO + AEO
 
-Search Engine Optimization **and** Answer Engine Optimization for WordPress. Unified JSON-LD `@graph`, per-type sitemaps, redirects with a 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. Zero external dependencies. No nag screens. GPL-2.0-or-later.
+Search Engine Optimization **and** Answer Engine Optimization for WordPress. Unified JSON-LD `@graph`, per-type + news + video sitemaps, redirects with a 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, site audit, schema display rules, live SERP/Twitter/Facebook preview, internal-link graph with orphan detection, image SEO, multi-focus-keyword analysis, Flesch-Kincaid readability, REST + WP-CLI surface. Zero external dependencies. No nag screens. GPL-2.0-or-later.
 
 Internal codename: **Signal Boost**.
 
@@ -36,13 +36,40 @@ The big incumbents (Yoast, RankMath, AIOSEO) cover SEO well but ship with upsell
 - **Speakable schema** — driven by a configurable list of CSS selectors.
 - **E-E-A-T author schema** — `Person` node with bio, credentials, expertise, social `sameAs` from user meta.
 
+### Site audit (v2.1)
+
+Semrush-style site-wide health report grouped by severity:
+
+- **Errors** — missing title, missing description, duplicate titles, duplicate descriptions, broken internal links, multiple H1, missing org logo.
+- **Warnings** — thin content, title/description length out of band, orphan posts, images missing alt, low readability, no cornerstone posts marked.
+- **Notices** — missing featured image, no focus keyword, no outbound internal links.
+
+One-click "Fix" jumps straight to the post editor.
+
 ### Editor experience
 
-- Per-post **meta box with tabs** (SEO / Social / Schema / AEO / Advanced / Analysis) + live content analysis.
+- Per-post **meta box with tabs** (SEO / **Preview** / Social / Schema / AEO / Advanced / Analysis).
+- **Live SERP / X / Facebook snippet preview** that updates as you type (v2.1).
+- **Live content analysis** including Flesch-Kincaid readability and per-keyword coverage (v2.1).
+- **Multiple focus keywords** — comma-separated, each scored independently (v2.1).
+- **Cornerstone content marker** — flagged posts get sitemap priority 1.0 and auto-appear in `/llms.txt` featured (v2.1).
 - **Bulk SEO editor** screen — title + description for many posts at once.
 - **Front-end admin bar pill** with the current page's worst severity (pass / warn / fail) and the full finding list.
 - **Dashboard widget** with 30-day AI crawler summary.
 - **Settings JSON export/import** for moving config between sites.
+
+### Image SEO (v2.1)
+
+- **Auto-alt fallback** — `<img>` tags without alt text are filled from the attachment / parent title at render time.
+- **Upload slug optimization** — `DSC_4523.jpg` becomes `founders-portrait.jpg` based on attachment title at upload time.
+
+### Schema display rules (v2.1)
+
+RankMath-Pro-style rule engine: emit one or more schema types per post based on post type and taxonomy term. Rules are evaluated in order; the first match wins. Per-post overrides on the meta box still trump everything. Falls back to the legacy `schema_type_map` if no rules match.
+
+### Internal-link graph (v2.1)
+
+On every post save, outbound internal links are extracted to `_plseo_internal_links` post meta. The content analyzer surfaces inbound count (orphan detection) and the site audit groups orphans + broken internal links across the site.
 
 ### Developer surface
 

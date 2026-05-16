@@ -40,6 +40,7 @@ final class PLSEO_Meta_Box {
 		'hreflang',
 		'quick_answer',
 		'focus_keyword',
+		'cornerstone',
 	);
 
 	private const SCHEMA_CHOICES = array(
@@ -102,6 +103,7 @@ final class PLSEO_Meta_Box {
 		<div class="plseo-mb">
 			<div class="plseo-mb__tabs">
 				<button type="button" class="plseo-mb__tab is-active" data-target="seo">SEO</button>
+				<button type="button" class="plseo-mb__tab" data-target="preview"><?php esc_html_e( 'Preview', 'perrylabs-seo' ); ?></button>
 				<button type="button" class="plseo-mb__tab" data-target="social">Social</button>
 				<button type="button" class="plseo-mb__tab" data-target="schema">Schema</button>
 				<button type="button" class="plseo-mb__tab" data-target="aeo">AEO</button>
@@ -127,6 +129,67 @@ final class PLSEO_Meta_Box {
 					<label for="plseo-canonical"><strong><?php esc_html_e( 'Canonical URL', 'perrylabs-seo' ); ?></strong></label><br>
 					<input type="url" id="plseo-canonical" name="_plseo_canonical" value="<?php echo esc_attr( $vals['canonical'] ); ?>" class="widefat code">
 				</p>
+			</div>
+
+			<div class="plseo-mb__panel" data-panel="preview">
+				<?php
+				$preview_title = '' !== $vals['title']
+					? PLSEO_Template_Resolver::resolve( $vals['title'], PLSEO_Template_Resolver::context_for_post( $post ) )
+					: PLSEO_Template_Resolver::resolve(
+						(string) PLSEO_Options::get( 'page' === $post->post_type ? 'title_template_page' : 'title_template_post', '%post_title% %sep% %site_name%' ),
+						PLSEO_Template_Resolver::context_for_post( $post )
+					);
+				$preview_desc  = '' !== $vals['description'] ? $vals['description'] : (string) $post->post_excerpt;
+				$preview_url   = '' !== $vals['canonical']   ? $vals['canonical']   : (string) get_permalink( $post );
+				$preview_img   = '' !== $vals['social_image']
+					? $vals['social_image']
+					: ( (string) get_the_post_thumbnail_url( $post, 'full' ) ?: (string) PLSEO_Options::get( 'default_social_image', '' ) );
+				$twitter_card  = (string) PLSEO_Options::get( 'twitter_card_type', 'summary_large_image' );
+				$site_name     = (string) get_bloginfo( 'name' );
+				?>
+				<div class="plseo-preview-grid">
+					<div class="plseo-preview plseo-preview--google" data-preview="google">
+						<h4><?php esc_html_e( 'Google search', 'perrylabs-seo' ); ?></h4>
+						<div class="plseo-snip plseo-snip--google">
+							<div class="plseo-snip__site"><?php echo esc_html( $site_name ); ?> · <span class="plseo-snip__crumb"><?php echo esc_html( wp_parse_url( $preview_url, PHP_URL_HOST ) ?: '' ); ?></span></div>
+							<a class="plseo-snip__title" data-preview-field="title" href="#"><?php echo esc_html( $preview_title ); ?></a>
+							<div class="plseo-snip__desc" data-preview-field="description"><?php echo esc_html( $preview_desc ); ?></div>
+						</div>
+					</div>
+
+					<div class="plseo-preview plseo-preview--x" data-preview="x">
+						<h4><?php esc_html_e( 'X / Twitter', 'perrylabs-seo' ); ?></h4>
+						<div class="plseo-snip plseo-snip--x plseo-snip--x-<?php echo esc_attr( $twitter_card ); ?>">
+							<?php if ( '' !== $preview_img ) : ?>
+								<div class="plseo-snip__img" data-preview-field="image" style="background-image:url('<?php echo esc_url( $preview_img ); ?>')"></div>
+							<?php else : ?>
+								<div class="plseo-snip__img plseo-snip__img--empty" data-preview-field="image"><?php esc_html_e( 'No image set', 'perrylabs-seo' ); ?></div>
+							<?php endif; ?>
+							<div class="plseo-snip__body">
+								<div class="plseo-snip__title" data-preview-field="title"><?php echo esc_html( $preview_title ); ?></div>
+								<div class="plseo-snip__desc"  data-preview-field="description"><?php echo esc_html( $preview_desc ); ?></div>
+								<div class="plseo-snip__url"   data-preview-field="url"><?php echo esc_html( (string) wp_parse_url( $preview_url, PHP_URL_HOST ) ); ?></div>
+							</div>
+						</div>
+					</div>
+
+					<div class="plseo-preview plseo-preview--fb" data-preview="fb">
+						<h4><?php esc_html_e( 'Facebook / LinkedIn', 'perrylabs-seo' ); ?></h4>
+						<div class="plseo-snip plseo-snip--fb">
+							<?php if ( '' !== $preview_img ) : ?>
+								<div class="plseo-snip__img" data-preview-field="image" style="background-image:url('<?php echo esc_url( $preview_img ); ?>')"></div>
+							<?php else : ?>
+								<div class="plseo-snip__img plseo-snip__img--empty" data-preview-field="image"><?php esc_html_e( 'No image set', 'perrylabs-seo' ); ?></div>
+							<?php endif; ?>
+							<div class="plseo-snip__body">
+								<div class="plseo-snip__url plseo-snip__url--fb" data-preview-field="url"><?php echo esc_html( strtoupper( (string) wp_parse_url( $preview_url, PHP_URL_HOST ) ) ); ?></div>
+								<div class="plseo-snip__title" data-preview-field="title"><?php echo esc_html( $preview_title ); ?></div>
+								<div class="plseo-snip__desc"  data-preview-field="description"><?php echo esc_html( $preview_desc ); ?></div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<p class="description"><?php esc_html_e( 'Previews update live as you type in the SEO tab.', 'perrylabs-seo' ); ?></p>
 			</div>
 
 			<div class="plseo-mb__panel" data-panel="social">
@@ -155,12 +218,17 @@ final class PLSEO_Meta_Box {
 					<textarea id="plseo-quick_answer" name="_plseo_quick_answer" rows="3" class="widefat" placeholder="<?php esc_attr_e( 'Two or three sentences AI answers can lift verbatim. Falls back to first paragraph.', 'perrylabs-seo' ); ?>"><?php echo esc_textarea( $vals['quick_answer'] ); ?></textarea>
 				</p>
 				<p>
-					<label for="plseo-focus_keyword"><strong><?php esc_html_e( 'Focus keyword', 'perrylabs-seo' ); ?></strong></label><br>
+					<label for="plseo-focus_keyword"><strong><?php esc_html_e( 'Focus keywords', 'perrylabs-seo' ); ?></strong></label><br>
 					<input type="text" id="plseo-focus_keyword" name="_plseo_focus_keyword" value="<?php echo esc_attr( $vals['focus_keyword'] ); ?>" class="widefat">
-					<span class="description"><?php esc_html_e( 'Used by the content analysis and internal link suggester below.', 'perrylabs-seo' ); ?></span>
+					<span class="description"><?php esc_html_e( 'Comma-separated. Each one is checked against the content; the first drives internal-link suggestions.', 'perrylabs-seo' ); ?></span>
 				</p>
 
-				<?php $suggestions = '' !== $vals['focus_keyword'] ? PLSEO_Content_Analysis::suggest_internal_links( (int) $post->ID, $vals['focus_keyword'] ) : array(); ?>
+				<?php
+				$primary_keyword = '' !== $vals['focus_keyword']
+					? trim( (string) explode( ',', $vals['focus_keyword'] )[0] )
+					: '';
+				$suggestions     = '' !== $primary_keyword ? PLSEO_Content_Analysis::suggest_internal_links( (int) $post->ID, $primary_keyword ) : array();
+				?>
 				<?php if ( ! empty( $suggestions ) ) : ?>
 					<h4><?php esc_html_e( 'Internal-link suggestions', 'perrylabs-seo' ); ?></h4>
 					<ul class="plseo-link-suggestions">
@@ -174,7 +242,8 @@ final class PLSEO_Meta_Box {
 			<div class="plseo-mb__panel" data-panel="advanced">
 				<p>
 					<label><input type="checkbox" name="_plseo_noindex" value="1" <?php checked( $vals['noindex'], '1' ); ?>> <?php esc_html_e( 'Noindex this post', 'perrylabs-seo' ); ?></label><br>
-					<label><input type="checkbox" name="_plseo_nofollow" value="1" <?php checked( $vals['nofollow'], '1' ); ?>> <?php esc_html_e( 'Nofollow links from this post', 'perrylabs-seo' ); ?></label>
+					<label><input type="checkbox" name="_plseo_nofollow" value="1" <?php checked( $vals['nofollow'], '1' ); ?>> <?php esc_html_e( 'Nofollow links from this post', 'perrylabs-seo' ); ?></label><br>
+					<label title="<?php esc_attr_e( 'Promotes this post in /llms.txt featured and gives it sitemap priority 1.0.', 'perrylabs-seo' ); ?>"><input type="checkbox" name="_plseo_cornerstone" value="1" <?php checked( $vals['cornerstone'], '1' ); ?>> <?php esc_html_e( 'Mark as cornerstone content', 'perrylabs-seo' ); ?></label>
 				</p>
 				<p>
 					<label for="plseo-hreflang"><strong><?php esc_html_e( 'Hreflang alternates', 'perrylabs-seo' ); ?></strong></label><br>
@@ -239,7 +308,7 @@ final class PLSEO_Meta_Box {
 		}
 
 		// Booleans (checkbox keys present only when checked).
-		foreach ( array( 'noindex', 'nofollow' ) as $field ) {
+		foreach ( array( 'noindex', 'nofollow', 'cornerstone' ) as $field ) {
 			$key = '_plseo_' . $field;
 			if ( ! empty( $_POST[ $key ] ) ) {
 				update_post_meta( $post_id, $key, '1' );

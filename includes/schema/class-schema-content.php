@@ -22,56 +22,64 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class PLSEO_Schema_Content {
 
 	public static function register( PLSEO_Schema_Graph $graph ): void {
-		$graph->register_contributor( 'primary-entity', array( __CLASS__, 'primary_entity' ), 15 );
-		$graph->register_contributor( 'author-person',  array( __CLASS__, 'author_person' ),  18 );
-		$graph->register_contributor( 'video-object',   array( __CLASS__, 'video_object' ),   20 );
+		$graph->register_contributor( 'primary-entity', array( __CLASS__, 'primary_entities' ), 15 );
+		$graph->register_contributor( 'author-person',  array( __CLASS__, 'author_person' ),    18 );
+		$graph->register_contributor( 'video-object',   array( __CLASS__, 'video_object' ),     20 );
 	}
 
 	/**
-	 * Resolve the schema @type for a given post.
-	 */
-	public static function resolve_type( \WP_Post $post ): string {
-		$override = (string) plseo_get_post_meta( $post->ID, 'schema_type', '' );
-		if ( '' !== $override && 'none' !== $override ) {
-			return $override;
-		}
-
-		$map = (array) PLSEO_Options::get( 'schema_type_map', array() );
-		if ( isset( $map[ $post->post_type ] ) && '' !== $map[ $post->post_type ] ) {
-			return (string) $map[ $post->post_type ];
-		}
-
-		// Fallbacks.
-		if ( 'page' === $post->post_type ) {
-			return 'WebPage';
-		}
-		return 'Article';
-	}
-
-	/**
-	 * Build the primary entity node (Article / NewsArticle / BlogPosting / Event / LocalBusiness / etc.).
+	 * Resolve all schema @types for a given post via the rules engine.
 	 *
-	 * @return array<string,mixed>|null
+	 * @return array<int,string>
 	 */
-	public static function primary_entity( ?\WP_Post $post ): ?array {
+	public static function resolve_types( \WP_Post $post ): array {
+		return PLSEO_Schema_Rules::emit_for( $post );
+	}
+
+	/**
+	 * Build one or more primary-entity nodes for the queried post.
+	 *
+	 * Returns an array of nodes (the graph builder accepts a 0-indexed list).
+	 * WebPage is dropped because Schema_Types::webpage() handles it. FAQPage /
+	 * HowTo are dropped because Schema_AEO emits them with their own @ids.
+	 *
+	 * @return array<int,array<string,mixed>>|null
+	 */
+	public static function primary_entities( ?\WP_Post $post ): ?array {
 		if ( ! $post instanceof \WP_Post ) {
 			return null;
 		}
-		if ( plseo_get_post_meta( $post->ID, 'schema_type', '' ) === 'none' ) {
+		$types = self::resolve_types( $post );
+		if ( in_array( 'none', $types, true ) ) {
 			return null;
 		}
 
-		$type = self::resolve_type( $post );
-
-		// WebPage is already emitted by Schema_Types::webpage(); don't double it.
-		if ( 'WebPage' === $type ) {
-			return null;
+		$nodes = array();
+		foreach ( $types as $type ) {
+			if ( in_array( $type, array( 'WebPage', 'FAQPage', 'HowTo' ), true ) ) {
+				// Emitted elsewhere — skip to avoid duplicate @ids.
+				continue;
+			}
+			$node = self::build_entity( $post, $type );
+			if ( $node ) {
+				$nodes[] = $node;
+			}
 		}
+		return empty( $nodes ) ? null : $nodes;
+	}
 
+	/**
+	 * Construct one entity node of the requested type.
+	 *
+	 * @return array<string,mixed>|null
+	 */
+	private static function build_entity( \WP_Post $post, string $type ): ?array {
 		$url  = PLSEO_Schema_Graph::current_url();
+		// Multiple types per post need distinct @ids so the graph dedupes correctly.
+		$entity_id = $url . '#primary-' . sanitize_key( $type );
 		$node = array(
 			'@type'         => $type,
-			'@id'           => PLSEO_Schema_Graph::primary_entity_id( $url ),
+			'@id'           => $entity_id,
 			'mainEntityOfPage' => array( '@id' => PLSEO_Schema_Graph::webpage_id( $url ) ),
 			'url'           => $url,
 			'name'          => (string) get_the_title( $post ),
@@ -295,18 +303,10 @@ final class PLSEO_Schema_Content {
 	}
 
 	private static function clip( string $text, int $max ): string {
-		if ( mb_strlen( $text ) <= $max ) {
-			return $text;
-		}
-		return rtrim( mb_substr( $text, 0, $max - 1 ), ' ,.;:-' ) . '…';
+		return PLSEO_Str::clip( $text, $max );
 	}
 
 	private static function language(): string {
-		$opt = trim( (string) PLSEO_Options::get( 'site_language', '' ) );
-		if ( '' !== $opt ) {
-			return $opt;
-		}
-		$locale = (string) get_locale();
-		return $locale !== '' ? str_replace( '_', '-', $locale ) : 'en';
+		return PLSEO_Str::site_language();
 	}
 }

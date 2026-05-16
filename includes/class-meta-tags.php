@@ -131,23 +131,11 @@ final class PLSEO_Meta_Tags {
 	}
 
 	private function first_paragraph( \WP_Post $post ): string {
-		$content = apply_filters( 'the_content', $post->post_content );
-		$content = wp_strip_all_tags( (string) $content );
-		$content = trim( preg_replace( '/\s+/u', ' ', $content ) ?? '' );
-		return $content;
+		return PLSEO_Str::post_plain_text( $post );
 	}
 
 	private function clip( string $text, int $max = 160 ): string {
-		$text = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( $text ) ) ?? '' );
-		if ( mb_strlen( $text ) <= $max ) {
-			return $text;
-		}
-		$clipped = mb_substr( $text, 0, $max - 1 );
-		$cut     = mb_strrpos( $clipped, ' ' );
-		if ( false !== $cut && $cut > $max - 30 ) {
-			$clipped = mb_substr( $clipped, 0, $cut );
-		}
-		return rtrim( $clipped, ' ,.;:-' ) . '…';
+		return PLSEO_Str::clip( $text, $max );
 	}
 
 	/* ───────────────────────── robots ───────────────────────── */

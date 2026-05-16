@@ -298,9 +298,8 @@ final class PLSEO_Schema_AEO {
 				return $graph;
 			}
 
-			// Prefer the primary entity (Article/Event/etc.). For Pages there is no primary
-			// entity — fall back to the WebPage node so the signal still lands.
-			$primary_id = PLSEO_Schema_Graph::primary_entity_id();
+			// Prefer any primary entity (Article/Event/etc., including multi-type rules
+			// that emit `#primary-{type}`). Fall back to the WebPage when there is none.
 			$webpage_id = PLSEO_Schema_Graph::webpage_id();
 
 			$attached = false;
@@ -308,7 +307,7 @@ final class PLSEO_Schema_AEO {
 				if ( ! isset( $node['@id'] ) ) {
 					continue;
 				}
-				if ( $node['@id'] === $primary_id && empty( $node['abstract'] ) ) {
+				if ( str_contains( (string) $node['@id'], '#primary' ) && empty( $node['abstract'] ) ) {
 					$node['abstract'] = $quick;
 					$attached = true;
 					break;

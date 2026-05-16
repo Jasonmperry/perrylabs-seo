@@ -3,7 +3,7 @@
  * Plugin Name: PerryLabs SEO + AEO
  * Plugin URI:  https://perrylabs.io
  * Description: Search Engine Optimization and Answer Engine Optimization for WordPress. Unified @graph JSON-LD, per-type sitemaps, redirects with 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. No external dependencies, no nag screens.
- * Version:     2.0.0
+ * Version:     2.1.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author:      PerryLabs
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * ────────────────────────────────────────────────────────────────────── */
 
-define( 'PL_SEO_VERSION', '2.0.0' );
+define( 'PL_SEO_VERSION', '2.1.0' );
 define( 'PL_SEO_CODENAME', 'Signal Boost' );
 define( 'PL_SEO_PLUGIN_FILE', __FILE__ );
 define( 'PL_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -41,6 +41,7 @@ $plseo_classes = array(
 	// Core infrastructure.
 	'includes/class-options.php',
 	'includes/class-migrations.php',
+	'includes/helpers/class-str.php',
 	'includes/helpers/class-template-resolver.php',
 	'includes/helpers/class-field-renderer.php',
 
@@ -50,6 +51,7 @@ $plseo_classes = array(
 
 	// Schema graph.
 	'includes/schema/class-schema-graph.php',
+	'includes/schema/class-schema-rules.php',
 	'includes/schema/class-schema-types.php',
 	'includes/schema/class-schema-content.php',
 	'includes/schema/class-schema-aeo.php',
@@ -72,7 +74,21 @@ $plseo_classes = array(
 	// Content analysis.
 	'includes/class-content-analysis.php',
 
+	// Internal-link graph (inbound count + orphan detection).
+	'includes/class-link-graph.php',
+
+	// Image SEO (auto-alt + slug optimization on upload).
+	'includes/class-image-seo.php',
+
+	// Site audit (Semrush-style aggregate health report).
+	'includes/class-audit.php',
+
 	// Admin layer.
+	'includes/admin/class-admin-actions.php',
+	'includes/admin/class-redirects-screen.php',
+	'includes/admin/class-log404-screen.php',
+	'includes/admin/class-aeo-dashboard-screen.php',
+	'includes/admin/class-audit-screen.php',
 	'includes/admin/class-admin.php',
 	'includes/admin/class-tabs.php',
 	'includes/admin/class-meta-box.php',
@@ -115,6 +131,9 @@ add_action( 'plugins_loaded', function (): void {
 	PLSEO_IndexNow::instance()->boot();
 	PLSEO_LLMs_Txt::instance()->boot();
 	PLSEO_REST_API::instance()->boot();
+	PLSEO_Image_SEO::instance()->boot();
+	PLSEO_Link_Graph::instance()->boot();
+	PLSEO_Audit::instance()->boot();
 
 	// Admin-only modules.
 	if ( is_admin() ) {

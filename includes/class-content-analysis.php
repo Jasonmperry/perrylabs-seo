@@ -105,12 +105,20 @@ final class PLSEO_Content_Analysis {
 			$out[] = self::row( 'words_ok', 'pass', __( 'Word count is reasonable', 'perrylabs-seo' ), sprintf( __( '%d words.', 'perrylabs-seo' ), $word_count ) );
 		}
 
-		// Internal links.
+		// Outbound internal links from this post.
 		$internal = self::count_internal_links( $rendered );
 		if ( 0 === $internal ) {
 			$out[] = self::row( 'internal_links_none', 'warn', __( 'No internal links', 'perrylabs-seo' ), __( 'Linking to related posts helps crawlers and answer engines understand topical clusters.', 'perrylabs-seo' ) );
 		} else {
-			$out[] = self::row( 'internal_links_ok', 'pass', sprintf( __( '%d internal link(s)', 'perrylabs-seo' ), $internal ), '' );
+			$out[] = self::row( 'internal_links_ok', 'pass', sprintf( __( '%d internal link(s) out', 'perrylabs-seo' ), $internal ), '' );
+		}
+
+		// Inbound internal links to this post (orphan detection).
+		$inbound = PLSEO_Link_Graph::instance()->inbound_count( (int) $post->ID );
+		if ( 0 === $inbound && 'publish' === $post->post_status ) {
+			$out[] = self::row( 'inbound_none', 'warn', __( 'Orphan post — no other posts link to this one', 'perrylabs-seo' ), __( 'Add a link from a related post so this page is discoverable from elsewhere on the site.', 'perrylabs-seo' ) );
+		} elseif ( $inbound > 0 ) {
+			$out[] = self::row( 'inbound_ok', 'pass', sprintf( __( '%d inbound internal link(s)', 'perrylabs-seo' ), $inbound ), '' );
 		}
 
 		// AEO: FAQ-readiness signal.
@@ -124,7 +132,135 @@ final class PLSEO_Content_Analysis {
 			$out[] = self::row( 'aeo_howto_signal', 'pass', __( 'Step-style content detected — HowTo schema may auto-emit', 'perrylabs-seo' ), '' );
 		}
 
+		// Readability (Flesch-Kincaid Reading Ease).
+		$readability = self::readability( $plain );
+		if ( $readability['words'] >= 50 ) {
+			if ( $readability['score'] >= 60 ) {
+				$out[] = self::row( 'readability_ok', 'pass', sprintf( __( 'Readability: %1$s (FK Reading Ease %2$.0f)', 'perrylabs-seo' ), $readability['band'], $readability['score'] ), sprintf( __( 'Avg %1$.1f words/sentence, %2$.1f syllables/word.', 'perrylabs-seo' ), $readability['avg_sentence_len'], $readability['avg_syllables_per_word'] ) );
+			} elseif ( $readability['score'] >= 30 ) {
+				$out[] = self::row( 'readability_dense', 'warn', sprintf( __( 'Readability: %1$s (FK Reading Ease %2$.0f)', 'perrylabs-seo' ), $readability['band'], $readability['score'] ), __( 'Shorter sentences and simpler words would lift the score.', 'perrylabs-seo' ) );
+			} else {
+				$out[] = self::row( 'readability_hard', 'fail', sprintf( __( 'Readability: %1$s (FK Reading Ease %2$.0f)', 'perrylabs-seo' ), $readability['band'], $readability['score'] ), __( 'College-level prose. Consider breaking long sentences and replacing rare words.', 'perrylabs-seo' ) );
+			}
+		}
+
+		// Focus keyword coverage (supports comma-separated list).
+		$kw_raw = (string) plseo_get_post_meta( $post->ID, 'focus_keyword', '' );
+		if ( '' !== $kw_raw ) {
+			foreach ( self::split_keywords( $kw_raw ) as $kw ) {
+				$out[] = self::keyword_coverage( $kw, $post, $title_resolved, $plain, $rendered );
+			}
+		}
+
 		return $out;
+	}
+
+	/**
+	 * Flesch-Kincaid Reading Ease.
+	 *
+	 * @return array{score:float,band:string,words:int,sentences:int,avg_sentence_len:float,avg_syllables_per_word:float}
+	 */
+	public static function readability( string $plain ): array {
+		$words_arr = preg_split( '/\s+/u', $plain, -1, PREG_SPLIT_NO_EMPTY ) ?: array();
+		$words     = count( $words_arr );
+		$sentences = max( 1, (int) preg_match_all( '/[.!?]+(?=\s|$)/u', $plain ) );
+
+		$syllables = 0;
+		foreach ( $words_arr as $w ) {
+			$syllables += self::count_syllables( $w );
+		}
+
+		if ( $words < 1 ) {
+			return array( 'score' => 0.0, 'band' => 'n/a', 'words' => 0, 'sentences' => $sentences, 'avg_sentence_len' => 0.0, 'avg_syllables_per_word' => 0.0 );
+		}
+
+		$asl   = $words / $sentences;
+		$asw   = $syllables / $words;
+		$score = 206.835 - ( 1.015 * $asl ) - ( 84.6 * $asw );
+		$score = max( 0.0, min( 100.0, $score ) );
+
+		$band = match ( true ) {
+			$score >= 90 => 'very easy',
+			$score >= 80 => 'easy',
+			$score >= 70 => 'fairly easy',
+			$score >= 60 => 'standard',
+			$score >= 50 => 'fairly difficult',
+			$score >= 30 => 'difficult',
+			default      => 'very difficult',
+		};
+
+		return array(
+			'score'                  => $score,
+			'band'                   => $band,
+			'words'                  => $words,
+			'sentences'              => $sentences,
+			'avg_sentence_len'       => $asl,
+			'avg_syllables_per_word' => $asw,
+		);
+	}
+
+	/**
+	 * Approximate syllable count — vowel-group heuristic. Good enough for English-ish prose.
+	 */
+	private static function count_syllables( string $word ): int {
+		$w = strtolower( preg_replace( '/[^a-z]/i', '', $word ) ?? '' );
+		if ( '' === $w ) {
+			return 0;
+		}
+		if ( strlen( $w ) <= 3 ) {
+			return 1;
+		}
+		// Silent trailing 'e' (but not 'le').
+		$w = preg_replace( '/(?:[^aeiouy])e$/i', '$0e', $w ) ?? $w;
+		$w = preg_replace( '/e$/i', '', $w ) ?? $w;
+		preg_match_all( '/[aeiouy]+/i', $w, $m );
+		$count = isset( $m[0] ) ? count( $m[0] ) : 0;
+		return max( 1, $count );
+	}
+
+	/** @return array<int,string> */
+	private static function split_keywords( string $raw ): array {
+		$parts = array_map( 'trim', explode( ',', $raw ) );
+		return array_values( array_filter( $parts, static fn( $p ) => '' !== $p ) );
+	}
+
+	/**
+	 * Coverage report for one focus keyword.
+	 *
+	 * @return array{id:string,severity:string,label:string,detail:string}
+	 */
+	private static function keyword_coverage( string $kw, \WP_Post $post, string $title, string $plain, string $rendered ): array {
+		$kw_lc      = mb_strtolower( $kw );
+		$in_title   = false !== mb_stripos( $title, $kw );
+		$in_url     = false !== stripos( (string) get_post_field( 'post_name', $post ), sanitize_title( $kw ) );
+		$in_first   = false !== mb_stripos( mb_substr( $plain, 0, 200 ), $kw_lc );
+		$in_h1h2    = (bool) preg_match( '#<h[12][^>]*>[^<]*' . preg_quote( $kw, '#' ) . '[^<]*</h[12]>#i', $rendered );
+		$density    = self::keyword_density( $plain, $kw );
+
+		$hits = (int) $in_title + (int) $in_url + (int) $in_first + (int) $in_h1h2;
+		$severity = $hits >= 3 ? 'pass' : ( $hits >= 2 ? 'warn' : 'fail' );
+
+		$detail = sprintf(
+			'%s · %s · %s · %s · %s',
+			$in_title ? '✓ title'         : '✗ title',
+			$in_url   ? '✓ URL'           : '✗ URL',
+			$in_first ? '✓ first 200 chars' : '✗ first 200 chars',
+			$in_h1h2  ? '✓ H1/H2'         : '✗ H1/H2',
+			sprintf( __( 'density %.2f%%', 'perrylabs-seo' ), $density * 100 )
+		);
+
+		return self::row(
+			'keyword_' . sanitize_key( $kw ),
+			$severity,
+			sprintf( __( 'Focus keyword: "%s"', 'perrylabs-seo' ), $kw ),
+			$detail
+		);
+	}
+
+	private static function keyword_density( string $plain, string $kw ): float {
+		$words = max( 1, str_word_count( $plain ) );
+		$count = mb_substr_count( mb_strtolower( $plain ), mb_strtolower( $kw ) );
+		return $count / $words;
 	}
 
 	/**

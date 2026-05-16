@@ -40,6 +40,29 @@
 			$( '#' + $c.data( 'target' ) ).on( 'input keyup change', function () { updateCounter( $c ); } );
 		} );
 
+		// Live preview wiring — keep Google/X/FB cards in sync with the SEO tab inputs.
+		function bindPreview( inputId, field ) {
+			const $input = $( '#' + inputId );
+			if ( ! $input.length ) return;
+			$input.on( 'input keyup change', function () {
+				const val = $input.val() || '';
+				$( '.plseo-mb [data-preview-field="' + field + '"]' ).each( function () {
+					const $node = $( this );
+					if ( field === 'image' ) {
+						if ( val ) {
+							$node.css( 'background-image', 'url(' + val + ')' ).removeClass( 'plseo-snip__img--empty' ).text( '' );
+						}
+					} else {
+						$node.text( val );
+					}
+				} );
+			} );
+		}
+		bindPreview( 'plseo-title',        'title' );
+		bindPreview( 'plseo-description',  'description' );
+		bindPreview( 'plseo-canonical',    'url' );
+		bindPreview( 'plseo-social_image', 'image' );
+
 		// Media picker (mirrors admin.js — duplicated so meta-box.js stays self-contained).
 		$( document ).on( 'click', '.plseo-image-pick', function ( e ) {
 			e.preventDefault();

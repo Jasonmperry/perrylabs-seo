@@ -161,6 +161,34 @@ final class PLSEO_Tabs {
 
 		add_settings_field( 'sitemap_include_images', __( 'Include image sitemap extensions', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_sm', array( 'key' => 'sitemap_include_images', 'inline_label' => __( 'Emit <image:image> entries per URL', 'perrylabs-seo' ) ) );
 		PLSEO_Options::register_sanitizer( 'sitemap_include_images', static fn( $v ) => (bool) $v );
+
+		// News sitemap.
+		add_settings_section( 'plseo_sm_news', __( 'Google News sitemap', 'perrylabs-seo' ), static function (): void {
+			echo '<p>' . sprintf(
+				wp_kses_post( __( 'Lives at %s. Only includes articles published in the last 48 hours.', 'perrylabs-seo' ) ),
+				'<a href="' . esc_url( home_url( '/sitemap-news.xml' ) ) . '" target="_blank"><code>/sitemap-news.xml</code></a>'
+			) . '</p>';
+		}, $page );
+
+		add_settings_field( 'sitemap_news_enabled', __( 'Enable news sitemap', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_sm_news', array( 'key' => 'sitemap_news_enabled', 'inline_label' => __( 'Serve /sitemap-news.xml and reference it from the index', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'sitemap_news_enabled', static fn( $v ) => (bool) $v );
+
+		add_settings_field( 'sitemap_news_post_types', __( 'News post types', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'multicheck_post_types' ), $page, 'plseo_sm_news', array( 'key' => 'sitemap_news_post_types' ) );
+		PLSEO_Options::register_sanitizer( 'sitemap_news_post_types', static fn( $v ) => array_values( array_filter( array_map( 'sanitize_key', (array) $v ) ) ) );
+
+		add_settings_field( 'sitemap_news_publication', __( 'Publication name', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_sm_news', array( 'key' => 'sitemap_news_publication', 'placeholder' => get_bloginfo( 'name' ), 'description' => __( 'Overrides site title in the <news:publication> block. Leave empty to use site title.', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'sitemap_news_publication', static fn( $v ) => sanitize_text_field( (string) $v ) );
+
+		// Video sitemap.
+		add_settings_section( 'plseo_sm_video', __( 'Video sitemap', 'perrylabs-seo' ), static function (): void {
+			echo '<p>' . sprintf(
+				wp_kses_post( __( 'Lives at %s. Posts containing a YouTube/Vimeo/native video are auto-included.', 'perrylabs-seo' ) ),
+				'<a href="' . esc_url( home_url( '/sitemap-videos.xml' ) ) . '" target="_blank"><code>/sitemap-videos.xml</code></a>'
+			) . '</p>';
+		}, $page );
+
+		add_settings_field( 'sitemap_video_enabled', __( 'Enable video sitemap', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_sm_video', array( 'key' => 'sitemap_video_enabled', 'inline_label' => __( 'Serve /sitemap-videos.xml', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'sitemap_video_enabled', static fn( $v ) => (bool) $v );
 	}
 
 	/* ───────────────────────── schema ───────────────────────── */
@@ -226,6 +254,35 @@ final class PLSEO_Tabs {
 			'rows' => 4,
 		) );
 		PLSEO_Options::register_sanitizer( 'business_hours', static fn( $v ) => sanitize_textarea_field( (string) $v ) );
+
+		// Schema display rules.
+		add_settings_section( 'plseo_schema_rules', __( 'Display rules', 'perrylabs-seo' ), static function (): void {
+			echo '<p>' . esc_html__( 'Decide which schema types emit for which posts. First matching rule wins; per-post overrides on the meta box still take priority.', 'perrylabs-seo' ) . '</p>';
+			echo '<p class="description">' . wp_kses_post( __( 'Format: JSON array of <code>{"when":{"post_type":"post","taxonomy":"category","term_slug":"reviews"},"emit":["Article","Review"]}</code> objects. Empty <code>when</code> = unconditional.', 'perrylabs-seo' ) ) . '</p>';
+		}, $page );
+
+		add_settings_field( 'schema_rules', __( 'Rules (JSON)', 'perrylabs-seo' ), array( __CLASS__, 'render_schema_rules_field' ), $page, 'plseo_schema_rules' );
+		PLSEO_Options::register_sanitizer( 'schema_rules', static function ( $v ) {
+			if ( is_string( $v ) ) {
+				$decoded = json_decode( $v, true );
+				$v = is_array( $decoded ) ? $decoded : array();
+			}
+			return PLSEO_Schema_Rules::sanitize( $v );
+		} );
+	}
+
+	public static function render_schema_rules_field(): void {
+		$value = (array) PLSEO_Options::get( 'schema_rules', array() );
+		$json  = wp_json_encode( $value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		if ( false === $json || '[]' === $json || '' === $json ) {
+			$json = "[\n  { \"when\": { \"post_type\": \"post\" }, \"emit\": [\"Article\"] }\n]";
+		}
+		printf(
+			'<textarea name="%1$s[schema_rules]" rows="10" class="large-text code" spellcheck="false">%2$s</textarea>',
+			esc_attr( PLSEO_Options::OPTION_NAME ),
+			esc_textarea( (string) $json )
+		);
+		echo '<p class="description">' . esc_html__( 'Emit accepts: Article, NewsArticle, BlogPosting, TechArticle, Event, VideoObject, Person, LocalBusiness — plus the special token "none" to suppress schema for the matched posts.', 'perrylabs-seo' ) . '</p>';
 	}
 
 	/* ───────────────────────── AEO ───────────────────────── */
@@ -385,6 +442,13 @@ final class PLSEO_Tabs {
 
 		add_settings_field( 'robots_txt_custom', __( 'Custom directives', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'code_textarea' ), $page, 'plseo_robots', array( 'key' => 'robots_txt_custom', 'rows' => 8 ) );
 		PLSEO_Options::register_sanitizer( 'robots_txt_custom', static fn( $v ) => sanitize_textarea_field( (string) $v ) );
+
+		add_settings_section( 'plseo_images', __( 'Image SEO', 'perrylabs-seo' ), '__return_false', $page );
+		add_settings_field( 'image_auto_alt', __( 'Auto-alt fallback', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_images', array( 'key' => 'image_auto_alt', 'inline_label' => __( 'Synthesize alt text from attachment / parent title when empty', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'image_auto_alt', static fn( $v ) => (bool) $v );
+
+		add_settings_field( 'image_optimize_upload_slug', __( 'Optimize upload filenames', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_images', array( 'key' => 'image_optimize_upload_slug', 'inline_label' => __( 'Rewrite image filenames to slug form on upload (e.g. DSC_4523.jpg → founders-portrait.jpg)', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'image_optimize_upload_slug', static fn( $v ) => (bool) $v );
 
 		add_settings_section( 'plseo_misc', __( 'Misc', 'perrylabs-seo' ), '__return_false', $page );
 		add_settings_field( 'remove_emoji_scripts', __( 'WP emoji scripts', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_misc', array( 'key' => 'remove_emoji_scripts', 'inline_label' => __( 'Remove from <head> (small perf win)', 'perrylabs-seo' ) ) );

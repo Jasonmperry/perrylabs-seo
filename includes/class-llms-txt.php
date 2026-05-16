@@ -93,8 +93,11 @@ final class PLSEO_LLMs_Txt {
 		$out  = '# ' . (string) get_bloginfo( 'name' ) . "\n\n";
 		$out .= '> ' . $this->intro() . "\n\n";
 
-		// Featured pages (admin-curated).
-		$featured = (array) PLSEO_Options::get( 'llms_txt_featured_ids', array() );
+		// Featured pages: admin-curated, plus any cornerstone-marked posts.
+		$featured = array_values( array_unique( array_filter( array_merge(
+			array_map( 'intval', (array) PLSEO_Options::get( 'llms_txt_featured_ids', array() ) ),
+			$this->cornerstone_post_ids()
+		) ) ) );
 		if ( ! empty( $featured ) ) {
 			$out .= "## Featured\n\n";
 			foreach ( $featured as $pid ) {
@@ -159,6 +162,29 @@ final class PLSEO_LLMs_Txt {
 
 		set_transient( self::CACHE_KEY_SUMMARY, $out, self::CACHE_TTL );
 		return $out;
+	}
+
+	/**
+	 * Cornerstone-marked post IDs across the configured post types.
+	 *
+	 * @return array<int,int>
+	 */
+	private function cornerstone_post_ids(): array {
+		$types = (array) PLSEO_Options::get( 'llms_txt_include_post_types', array( 'post', 'page' ) );
+		if ( empty( $types ) ) {
+			return array();
+		}
+		$q = new \WP_Query( array(
+			'post_type'      => $types,
+			'post_status'    => 'publish',
+			'posts_per_page' => 50,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+			'meta_query'     => array(
+				array( 'key' => '_plseo_cornerstone', 'value' => '1' ),
+			),
+		) );
+		return array_map( 'intval', $q->posts );
 	}
 
 	private function intro(): string {
@@ -257,7 +283,7 @@ final class PLSEO_LLMs_Txt {
 	}
 
 	private function clip( string $s, int $max ): string {
-		return mb_strlen( $s ) <= $max ? $s : rtrim( mb_substr( $s, 0, $max - 1 ), ' ,.;:-' ) . '…';
+		return PLSEO_Str::clip( $s, $max );
 	}
 
 	public function bust_cache(): void {
