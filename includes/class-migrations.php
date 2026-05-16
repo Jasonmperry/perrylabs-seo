@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class PLSEO_Migrations {
 
-	private const TARGET_VERSION = 2;
+	private const TARGET_VERSION = 3;
 	private const VERSION_KEY    = 'plseo_db_version';
 
 	/**
@@ -46,7 +46,36 @@ final class PLSEO_Migrations {
 			self::ensure_internal_keys();
 		}
 
+		if ( $installed < 3 ) {
+			self::import_v1_apollo_constant();
+		}
+
 		update_option( self::VERSION_KEY, self::TARGET_VERSION );
+	}
+
+	/**
+	 * v1 shipped a class-tracking.php that hard-coded an Apollo App ID with
+	 * an optional PERRYLABS_APOLLO_APP_ID constant override. v2 exposes this
+	 * as a regular option. If a site has the constant defined, import it.
+	 * If not, leave the option empty so other sites don't accidentally inherit
+	 * jasonmperry's App ID.
+	 */
+	private static function import_v1_apollo_constant(): void {
+		if ( ! defined( 'PERRYLABS_APOLLO_APP_ID' ) ) {
+			return;
+		}
+		$id = (string) constant( 'PERRYLABS_APOLLO_APP_ID' );
+		if ( '' === $id ) {
+			return;
+		}
+		$opts = get_option( PLSEO_Options::OPTION_NAME, array() );
+		if ( ! is_array( $opts ) ) {
+			$opts = array();
+		}
+		if ( empty( $opts['analytics_apollo_app_id'] ) ) {
+			$opts['analytics_apollo_app_id'] = $id;
+			update_option( PLSEO_Options::OPTION_NAME, $opts );
+		}
 	}
 
 	/**

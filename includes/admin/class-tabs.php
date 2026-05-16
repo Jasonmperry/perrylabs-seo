@@ -427,6 +427,12 @@ final class PLSEO_Tabs {
 		add_settings_field( 'analytics_clarity_id', __( 'Microsoft Clarity project ID', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_clarity_id' ) );
 		PLSEO_Options::register_sanitizer( 'analytics_clarity_id', static fn( $v ) => sanitize_text_field( (string) $v ) );
 
+		add_settings_field( 'analytics_apollo_app_id', __( 'Apollo.io App ID', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'text' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_apollo_app_id', 'description' => __( 'Sales-intent visitor tracker. Gated to "live" Pantheon / WP_ENV by default.', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'analytics_apollo_app_id', static fn( $v ) => sanitize_text_field( (string) $v ) );
+
+		add_settings_field( 'analytics_apollo_live_only', __( 'Apollo live-only', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_apollo_live_only', 'inline_label' => __( 'Only fire on production (PANTHEON_ENVIRONMENT=live or WP_ENV=production)', 'perrylabs-seo' ) ) );
+		PLSEO_Options::register_sanitizer( 'analytics_apollo_live_only', static fn( $v ) => (bool) $v );
+
 		add_settings_field( 'analytics_track_editors', __( 'Track logged-in editors', 'perrylabs-seo' ), array( PLSEO_Field_Renderer::class, 'checkbox' ), $page, 'plseo_analytics_intro', array( 'key' => 'analytics_track_editors', 'inline_label' => __( 'Include users with edit_posts capability (off = your team\'s admin visits are excluded)', 'perrylabs-seo' ) ) );
 		PLSEO_Options::register_sanitizer( 'analytics_track_editors', static fn( $v ) => (bool) $v );
 	}

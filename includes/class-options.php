@@ -146,6 +146,8 @@ final class PLSEO_Options {
 			'analytics_plausible_domain' => '',
 			'analytics_fathom_site_id'   => '',
 			'analytics_clarity_id'       => '',
+			'analytics_apollo_app_id'    => '',
+			'analytics_apollo_live_only' => true,
 			'analytics_track_editors'    => false,
 
 			// ── Canonical enforcement ──────────────────────────────

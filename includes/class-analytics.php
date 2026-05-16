@@ -86,6 +86,30 @@ final class PLSEO_Analytics {
 		if ( '' !== $clarity ) {
 			$this->emit_clarity( $clarity );
 		}
+
+		$apollo = trim( (string) PLSEO_Options::get( 'analytics_apollo_app_id', '' ) );
+		if ( '' !== $apollo && $this->apollo_env_ok() ) {
+			$this->emit_apollo( $apollo );
+		}
+	}
+
+	/**
+	 * Apollo's tracker is a sales-intent pixel — on most installs it should only
+	 * fire in production. The `analytics_apollo_live_only` option gates that;
+	 * when set, we look at PANTHEON_ENVIRONMENT (Pantheon-hosted sites) or
+	 * WP_ENV (a common convention) before emitting.
+	 */
+	private function apollo_env_ok(): bool {
+		if ( ! (bool) PLSEO_Options::get( 'analytics_apollo_live_only', true ) ) {
+			return true;
+		}
+		$env = '';
+		if ( defined( 'PANTHEON_ENVIRONMENT' ) ) {
+			$env = (string) constant( 'PANTHEON_ENVIRONMENT' );
+		} elseif ( defined( 'WP_ENV' ) ) {
+			$env = (string) constant( 'WP_ENV' );
+		}
+		return '' === $env || in_array( $env, array( 'live', 'production', 'prod' ), true );
 	}
 
 	public function render_footer(): void {
@@ -153,6 +177,15 @@ final class PLSEO_Analytics {
 			wp_json_encode( $id )
 		);
 		$this->emit_or_gate( 'clarity', 'analytics', '', $inline, array() );
+	}
+
+	private function emit_apollo( string $app_id ): void {
+		$inline = sprintf(
+			"function initApollo(){var n=Math.random().toString(36).substring(7),o=document.createElement('script');o.src='https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache='+n;o.async=!0;o.defer=!0;o.onload=function(){window.trackingFunctions.onLoad({appId:%s})};document.head.appendChild(o);}initApollo();",
+			wp_json_encode( $app_id )
+		);
+		// Apollo is sales-intent / contact-enrichment — categorize as marketing.
+		$this->emit_or_gate( 'apollo', 'marketing', '', $inline, array() );
 	}
 
 	/* ───────────────────────── emission strategies ───────────────────────── */
