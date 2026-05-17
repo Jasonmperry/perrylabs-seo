@@ -70,7 +70,10 @@ final class PLSEO_Smoke {
 				continue;
 			}
 
-			$response = wp_remote_get( home_url( $path ), array( 'timeout' => 8, 'sslverify' => false ) );
+			// `/llms-full.txt` concatenates many posts and is the slowest endpoint;
+			// give it a bigger budget than the others.
+			$timeout  = ( 'llms_full_txt' === $id ) ? 30 : 8;
+			$response = wp_remote_get( home_url( $path ), array( 'timeout' => $timeout, 'sslverify' => false ) );
 
 			if ( is_wp_error( $response ) ) {
 				$results[] = self::result( $id, 'endpoints', 'fail', $path,

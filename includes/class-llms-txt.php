@@ -230,11 +230,23 @@ final class PLSEO_LLMs_Txt {
 		$out  .= "_Generated " . gmdate( 'Y-m-d H:i' ) . " UTC. " . esc_html__( 'Each post below is delimited by a horizontal rule.', 'perrylabs-seo' ) . "_\n\n";
 
 		$types = (array) PLSEO_Options::get( 'llms_txt_include_post_types', array( 'post', 'page' ) );
+		// Cap per type. On a site with 4,000+ items in a single CPT,
+		// concatenating every full content body in one synchronous request
+		// blows past PHP's default 30s execution time and most server timeouts.
+		// Most AI assistants want the index, not the entire archive — they
+		// already have the per-post URLs from /llms.txt and can fetch what
+		// they need on demand.
+		$per_type = max( 1, (int) apply_filters( 'plseo_llms_full_per_type', 200 ) );
+		// Hard time budget — bail early when we're close to PHP's max_execution_time.
+		$budget_seconds = max( 1, (int) apply_filters( 'plseo_llms_full_time_budget', 20 ) );
+		$started        = microtime( true );
+		$truncated      = false;
+
 		foreach ( $types as $type ) {
 			$posts = get_posts( array(
 				'post_type'      => $type,
 				'post_status'    => 'publish',
-				'posts_per_page' => 500,
+				'posts_per_page' => $per_type,
 				'orderby'        => 'modified',
 				'order'          => 'DESC',
 				'meta_query'     => array(
@@ -244,6 +256,10 @@ final class PLSEO_LLMs_Txt {
 				),
 			) );
 			foreach ( $posts as $p ) {
+				if ( ( microtime( true ) - $started ) > $budget_seconds ) {
+					$truncated = true;
+					break 2;
+				}
 				$out .= "---\n\n";
 				$out .= "# " . $this->md_escape( (string) get_the_title( $p ) ) . "\n\n";
 				$out .= "_URL: " . (string) get_permalink( $p ) . "_\n";
@@ -251,6 +267,10 @@ final class PLSEO_LLMs_Txt {
 				$out .= $this->post_to_markdown( $p );
 				$out .= "\n\n";
 			}
+		}
+
+		if ( $truncated ) {
+			$out .= "\n---\n\n_Output truncated to stay under the {$budget_seconds}s generation budget. Increase via the `plseo_llms_full_time_budget` filter or lower per-type cap with `plseo_llms_full_per_type`._\n";
 		}
 
 		set_transient( self::CACHE_KEY_FULL, $out, self::CACHE_TTL );
