@@ -142,6 +142,12 @@ final class PLSEO_REST_API {
 				'full' => array( 'type' => 'boolean', 'default' => false ),
 			),
 		) );
+
+		register_rest_route( self::NS, '/smoke', array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			'callback'            => array( $this, 'smoke' ),
+		) );
 	}
 
 	public function analyze( \WP_REST_Request $req ): \WP_REST_Response {
@@ -246,6 +252,15 @@ final class PLSEO_REST_API {
 		// Fallback: just the resolved primary types from the rules engine.
 		return new \WP_REST_Response( array(
 			'types' => PLSEO_Schema_Rules::emit_for( $post ),
+		), 200 );
+	}
+
+	public function smoke( \WP_REST_Request $req ): \WP_REST_Response {
+		unset( $req );
+		$results = PLSEO_Smoke::run();
+		return new \WP_REST_Response( array(
+			'summary' => PLSEO_Smoke::summary( $results ),
+			'results' => $results,
 		), 200 );
 	}
 

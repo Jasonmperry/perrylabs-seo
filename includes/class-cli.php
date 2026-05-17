@@ -41,6 +41,7 @@ final class PLSEO_CLI {
 		\WP_CLI::add_command( 'plseo audit',     array( __CLASS__, 'cmd_audit' ) );
 		\WP_CLI::add_command( 'plseo ai-fill',   array( __CLASS__, 'cmd_ai_fill' ) );
 		\WP_CLI::add_command( 'plseo doctor',    array( __CLASS__, 'cmd_doctor' ) );
+		\WP_CLI::add_command( 'plseo smoke',     array( __CLASS__, 'cmd_smoke' ) );
 	}
 
 	public static function cmd_redirects( array $args, array $assoc ): void {
@@ -372,8 +373,8 @@ final class PLSEO_CLI {
 	 *   # Fill the first 50 posts on a fresh install
 	 *   wp plseo ai-fill
 	 *
-	 *   # Just news, with a half-second pause between calls
-	 *   wp plseo ai-fill --post-type=biobuzz_news --limit=200 --sleep=500
+	 *   # Just one post type, with a half-second pause between API calls
+	 *   wp plseo ai-fill --post-type=post --limit=200 --sleep=500
 	 *
 	 *   # Re-generate everything
 	 *   wp plseo ai-fill --overwrite --limit=1000
@@ -591,5 +592,60 @@ final class PLSEO_CLI {
 			: array( 'warn', 'WP-Cron', 'disabled — schedule the daily plseo_daily_maintenance hook from system cron or tables will grow unbounded' );
 
 		return $out;
+	}
+
+	/**
+	 * End-to-end smoke test: HTTP endpoints, REST routes, schema graph for a
+	 * sample post, every expected class loaded, custom tables present.
+	 *
+	 * Distinct from `doctor`: doctor inspects configuration, smoke actually
+	 * exercises functionality. Run smoke after a deploy; run doctor before.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table | json | csv. Default table.
+	 *
+	 * [--strict]
+	 * : Exit non-zero if any check produces a warning (default: fails only).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *   wp plseo smoke
+	 *   wp plseo smoke --strict --format=json
+	 */
+	public static function cmd_smoke( array $args, array $assoc ): void {
+		$results = PLSEO_Smoke::run();
+		$totals  = PLSEO_Smoke::summary( $results );
+		$format  = (string) ( $assoc['format'] ?? 'table' );
+		$strict  = isset( $assoc['strict'] );
+
+		if ( 'json' === $format ) {
+			\WP_CLI::log( wp_json_encode( array( 'summary' => $totals, 'results' => $results ), JSON_PRETTY_PRINT ) );
+		} else {
+			foreach ( $results as $r ) {
+				$icon = match ( $r['status'] ) {
+					'pass' => "\033[32m✓\033[0m",
+					'warn' => "\033[33m⚠\033[0m",
+					'fail' => "\033[31m✗\033[0m",
+					'skip' => "\033[2m·\033[0m",
+					default => '?',
+				};
+				\WP_CLI::log( sprintf( '  %s [%s] %-30s %s', $icon, $r['category'], $r['label'], $r['detail'] ) );
+			}
+			\WP_CLI::log( '' );
+			\WP_CLI::log( sprintf(
+				'Summary: %d pass, %d warn, %d fail, %d skip',
+				$totals['pass'], $totals['warn'], $totals['fail'], $totals['skip']
+			) );
+		}
+
+		if ( $totals['fail'] > 0 ) {
+			\WP_CLI::error( 'Smoke reported failures.' );
+		}
+		if ( $strict && $totals['warn'] > 0 ) {
+			\WP_CLI::error( '--strict: warnings present.' );
+		}
+		\WP_CLI::success( 'Smoke clean.' );
 	}
 }

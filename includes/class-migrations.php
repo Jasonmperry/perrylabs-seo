@@ -58,7 +58,7 @@ final class PLSEO_Migrations {
 	 * an optional PERRYLABS_APOLLO_APP_ID constant override. v2 exposes this
 	 * as a regular option. If a site has the constant defined, import it.
 	 * If not, leave the option empty so other sites don't accidentally inherit
-	 * jasonmperry's App ID.
+	 * the original deployment's App ID.
 	 */
 	private static function import_v1_apollo_constant(): void {
 		if ( ! defined( 'PERRYLABS_APOLLO_APP_ID' ) ) {

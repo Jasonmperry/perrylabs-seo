@@ -4,7 +4,7 @@ Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, jso
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.0
-Stable tag: 2.7.0
+Stable tag: 2.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -94,6 +94,14 @@ Yes — having two sitemaps that disagree is worse than either. We filter `wp_si
 The schema graph builder accepts custom contributors via plseo_register_schema_contributor() — Product, FAQ from ACF, etc. There's no auto-mapping built in for WooCommerce yet (planned for 2.1).
 
 == Changelog ==
+
+= 2.8.0 =
+Cleanroom + smoke test pass.
+
+* New `wp plseo smoke` CLI command and matching `/wp-json/plseo/v1/smoke` REST route. End-to-end exercise of every public endpoint (sitemap, robots.txt, llms.txt, llms-full.txt, IndexNow key file), the schema @graph against the most recent published post, every expected class loads, every custom table is present, rewrite endpoints registered, and the REST namespace responds. Run after a deploy.
+* Audit + scrub: removed two comments and one CLI docblock example that referenced specific deployments (the migration comment around the Apollo App ID, and a `--post-type=biobuzz_news` example). No code change.
+* Uninstall completeness: drops the `plseo_search_log` table (was missing), the `plseo_setup_completed` flag, all `plseo_*` user-meta, the OG image cache directory under uploads, and the daily-maintenance cron event. Now genuinely zero-residue on `Delete plugin`. Multisite uninstall iterates every site in the network.
+* Deactivation: clears the `plseo_daily_maintenance` cron in addition to flushing rewrites. Deactivated installs no longer queue work.
 
 = 2.7.0 =
 "Installable anywhere" hardening pass — no functional regressions, fewer surprises on a fresh install.
@@ -200,6 +208,9 @@ Major rewrite. Codename "Signal Boost." Everything new:
 Last v1 release. Preserved on the `v1-archive` git branch.
 
 == Upgrade Notice ==
+
+= 2.8.0 =
+Adds `wp plseo smoke` end-to-end smoke test command, scrubs leaked deployment-specific text, makes uninstall genuinely zero-residue. No functional regressions.
 
 = 2.7.0 =
 Portability hardening — lower PHP requirement to 8.0, conflict detection for Yoast/RankMath/AIOSEO, local logo (no S3 dependency), multisite activation, `wp plseo doctor`, opt-out for core-sitemap suppression. No functional regressions.
