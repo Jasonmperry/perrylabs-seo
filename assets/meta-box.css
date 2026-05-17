@@ -1,4 +1,9 @@
-/* PerryLabs SEO + AEO — per-post meta box */
+/* PerryLabs SEO + AEO — per-post meta box
+ *
+ * Internal UI uses shared --pl-* tokens. The SERP / X / FB snippet previews
+ * below intentionally use each network's real brand colors so authors see an
+ * accurate preview — do NOT replace them with PerryLabs tokens.
+ */
 
 #plseo-meta-box .inside { padding: 0; margin: 0; }
 
@@ -10,50 +15,50 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0;
-	background: #f6f7f7;
-	border-bottom: 1px solid #c3c4c7;
+	background: var(--pl-neutral-50);
+	border-bottom: 1px solid var(--pl-neutral-300);
 	padding: 0;
 }
 .plseo-mb__tab {
 	background: transparent;
 	border: 0;
-	border-right: 1px solid #dcdcde;
+	border-right: 1px solid var(--pl-neutral-200);
 	padding: 10px 14px;
 	cursor: pointer;
 	font-size: 13px;
-	color: #2c3338;
+	color: var(--pl-neutral-800);
 }
 .plseo-mb__tab:hover { background: #fff; }
 .plseo-mb__tab.is-active {
 	background: #fff;
 	font-weight: 600;
-	border-bottom: 2px solid #2271b1;
+	border-bottom: 2px solid var(--pl-aqua);
 	margin-bottom: -1px;
 }
 
-.plseo-mb__panel { display: none; padding: 16px 18px; }
+.plseo-mb__panel { display: none; padding: var(--pl-space-4) 18px; }
 .plseo-mb__panel.is-active { display: block; }
 
 .plseo-mb__panel p { margin: 0 0 14px; }
-.plseo-mb__panel label.description { color: #50575e; }
+.plseo-mb__panel label.description { color: var(--pl-neutral-700); }
 
 .plseo-counter {
 	display: inline-block;
 	margin-top: 4px;
 	font-size: 11px;
-	color: #646970;
+	color: var(--pl-neutral-600);
 }
 .plseo-counter.is-good { color: #1e8a3c; }
 .plseo-counter.is-warn { color: #b58400; }
-.plseo-counter.is-bad  { color: #b62917; }
+.plseo-counter.is-bad  { color: var(--pl-magenta); }
 
 .plseo-analysis {
 	width: 100%;
 	border-collapse: collapse;
 }
 .plseo-analysis td {
-	padding: 8px 6px;
-	border-bottom: 1px solid #f0f0f1;
+	padding: var(--pl-space-2) 6px;
+	border-bottom: 1px solid var(--pl-neutral-100);
 	vertical-align: top;
 }
 .plseo-analysis-badge {
@@ -70,13 +75,28 @@
 	margin-bottom: 4px;
 }
 
+/* Hreflang row table */
+.plseo-hreflang { margin: 0 0 14px; }
+.plseo-hreflang-table { margin: 6px 0; }
+.plseo-hreflang-table td,
+.plseo-hreflang-table th { padding: 4px 8px; }
+.plseo-hreflang-table input { width: 100%; }
+.plseo-hreflang-del {
+	cursor: pointer;
+	color: var(--pl-magenta);
+	font-size: 16px;
+	line-height: 1;
+	background: none;
+	border: 0;
+}
+
 /* SERP preview viewport toggle */
 .plseo-preview-toolbar {
 	display: inline-flex;
 	gap: 0;
-	margin-bottom: 8px;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
+	margin-bottom: var(--pl-space-2);
+	border: 1px solid var(--pl-neutral-300);
+	border-radius: var(--pl-radius-sm);
 	overflow: hidden;
 }
 .plseo-preview-viewport {
@@ -85,11 +105,11 @@
 	padding: 4px 10px;
 	font-size: 12px;
 	cursor: pointer;
-	border-right: 1px solid #dcdcde;
+	border-right: 1px solid var(--pl-neutral-200);
 }
 .plseo-preview-viewport:last-child { border-right: 0; }
 .plseo-preview-viewport.is-active {
-	background: #2271b1;
+	background: var(--pl-aqua);
 	color: #fff;
 }
 

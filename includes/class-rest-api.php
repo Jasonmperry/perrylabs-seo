@@ -106,6 +106,42 @@ final class PLSEO_REST_API {
 				'urls' => array( 'type' => 'array', 'required' => true, 'items' => array( 'type' => 'string' ) ),
 			),
 		) );
+
+		register_rest_route( self::NS, '/audit', array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			'callback'            => array( $this, 'audit' ),
+			'args'                => array(
+				'refresh' => array( 'type' => 'boolean', 'default' => false ),
+			),
+		) );
+
+		register_rest_route( self::NS, '/search-log', array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			'callback'            => array( $this, 'search_log' ),
+			'args'                => array(
+				'days'    => array( 'type' => 'integer', 'default' => 30, 'minimum' => 1, 'maximum' => 365 ),
+				'zero'    => array( 'type' => 'boolean', 'default' => false ),
+				'per_page' => array( 'type' => 'integer', 'default' => 25, 'minimum' => 1, 'maximum' => 500 ),
+			),
+		) );
+
+		register_rest_route( self::NS, '/schema/(?P<id>\d+)', array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'permission_callback' => static fn( $req ) => current_user_can( 'edit_post', (int) $req['id'] ),
+			'callback'            => array( $this, 'schema_for_post' ),
+			'args'                => array( 'id' => array( 'type' => 'integer', 'required' => true ) ),
+		) );
+
+		register_rest_route( self::NS, '/llms-txt', array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			'callback'            => array( $this, 'llms_txt' ),
+			'args'                => array(
+				'full' => array( 'type' => 'boolean', 'default' => false ),
+			),
+		) );
 	}
 
 	public function analyze( \WP_REST_Request $req ): \WP_REST_Response {
@@ -164,5 +200,65 @@ final class PLSEO_REST_API {
 		$urls = array_map( 'esc_url_raw', (array) $req['urls'] );
 		PLSEO_IndexNow::instance()->submit( $urls );
 		return new \WP_REST_Response( array( 'submitted' => count( $urls ) ), 202 );
+	}
+
+	public function audit( \WP_REST_Request $req ): \WP_REST_Response {
+		$audit = PLSEO_Audit::instance();
+		if ( $req['refresh'] ) {
+			$audit->bust_cache();
+		}
+		return new \WP_REST_Response( $audit->results(), 200 );
+	}
+
+	public function search_log( \WP_REST_Request $req ): \WP_REST_Response {
+		$log     = PLSEO_Search_Log::instance();
+		$days    = (int) $req['days'];
+		$per     = (int) $req['per_page'];
+		$rows    = $req['zero']
+			? $log->zero_result_queries( $days, $per )
+			: $log->top_queries( $days, $per );
+		return new \WP_REST_Response( array(
+			'days'  => $days,
+			'total' => $log->total_searches( $days ),
+			'mode'  => $req['zero'] ? 'zero_result' : 'top',
+			'rows'  => $rows,
+		), 200 );
+	}
+
+	public function schema_for_post( \WP_REST_Request $req ): \WP_REST_Response {
+		$post = get_post( (int) $req['id'] );
+		if ( ! $post instanceof \WP_Post ) {
+			return new \WP_REST_Response( array( 'error' => 'not_found' ), 404 );
+		}
+		// Re-use the schema-test screen helper if loaded; otherwise return the
+		// resolved type at minimum so REST consumers still get useful info.
+		if ( class_exists( 'PLSEO_Schema_Test_Screen' ) ) {
+			$ref = new \ReflectionClass( PLSEO_Schema_Test_Screen::class );
+			if ( $ref->hasMethod( 'build_graph_for_post' ) ) {
+				$m = $ref->getMethod( 'build_graph_for_post' );
+				$m->setAccessible( true );
+				$graph = $m->invoke( null, $post );
+				if ( is_array( $graph ) ) {
+					return new \WP_REST_Response( $graph, 200 );
+				}
+			}
+		}
+		// Fallback: just the resolved primary types from the rules engine.
+		return new \WP_REST_Response( array(
+			'types' => PLSEO_Schema_Rules::emit_for( $post ),
+		), 200 );
+	}
+
+	public function llms_txt( \WP_REST_Request $req ): \WP_REST_Response {
+		$url  = home_url( $req['full'] ? '/llms-full.txt' : '/llms.txt' );
+		$resp = wp_remote_get( $url, array( 'timeout' => 10, 'sslverify' => false ) );
+		if ( is_wp_error( $resp ) ) {
+			return new \WP_REST_Response( array( 'error' => $resp->get_error_message() ), 502 );
+		}
+		return new \WP_REST_Response( array(
+			'url'  => $url,
+			'body' => (string) wp_remote_retrieve_body( $resp ),
+			'code' => (int) wp_remote_retrieve_response_code( $resp ),
+		), 200 );
 	}
 }

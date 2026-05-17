@@ -67,6 +67,9 @@ final class PLSEO_Admin {
 		add_submenu_page( self::MENU_SLUG, __( 'AEO dashboard', 'perrylabs-seo' ),  __( 'AEO dashboard', 'perrylabs-seo' ),  'manage_options', 'plseo-aeo-dashboard',      array( PLSEO_AEO_Dashboard_Screen::class, 'render' ) );
 		add_submenu_page( self::MENU_SLUG, __( 'Site audit', 'perrylabs-seo' ),     __( 'Site audit', 'perrylabs-seo' ),     'manage_options', 'plseo-audit',              array( PLSEO_Audit_Screen::class,         'render' ) );
 		add_submenu_page( self::MENU_SLUG, __( 'Search log', 'perrylabs-seo' ),     __( 'Search log', 'perrylabs-seo' ),     'manage_options', 'plseo-search-log',         array( PLSEO_Search_Log_Screen::class,    'render' ) );
+		add_submenu_page( self::MENU_SLUG, __( 'Schema test', 'perrylabs-seo' ),    __( 'Schema test', 'perrylabs-seo' ),    'manage_options', 'plseo-schema-test',        array( PLSEO_Schema_Test_Screen::class,   'render' ) );
+		add_submenu_page( self::MENU_SLUG, __( 'Robots & endpoints', 'perrylabs-seo' ), __( 'Robots & endpoints', 'perrylabs-seo' ), 'manage_options', 'plseo-robots-preview', array( PLSEO_Robots_Preview_Screen::class, 'render' ) );
+		add_submenu_page( self::MENU_SLUG, __( 'Import', 'perrylabs-seo' ),         __( 'Import', 'perrylabs-seo' ),         'manage_options', 'plseo-import',             array( PLSEO_Importer_Screen::class,      'render' ) );
 	}
 
 	public function register_settings(): void {
@@ -88,8 +91,12 @@ final class PLSEO_Admin {
 		$is_editor        = in_array( $hook, array( 'post.php', 'post-new.php' ), true );
 
 		if ( $is_editor ) {
-			wp_enqueue_style(  'plseo-meta-box', PL_SEO_PLUGIN_URL . 'assets/meta-box.css', array(),             PL_SEO_VERSION );
-			wp_enqueue_script( 'plseo-meta-box', PL_SEO_PLUGIN_URL . 'assets/meta-box.js',  array( 'jquery' ),   PL_SEO_VERSION, true );
+			PerryLabs_Branding::enqueue_tokens(
+				PL_SEO_PLUGIN_URL . 'includes/branding/tokens.css',
+				PL_SEO_VERSION
+			);
+			wp_enqueue_style(  'plseo-meta-box', PL_SEO_PLUGIN_URL . 'assets/meta-box.css', array( 'perrylabs-tokens' ), PL_SEO_VERSION );
+			wp_enqueue_script( 'plseo-meta-box', PL_SEO_PLUGIN_URL . 'assets/meta-box.js',  array( 'jquery' ),           PL_SEO_VERSION, true );
 			wp_enqueue_media();
 			return;
 		}

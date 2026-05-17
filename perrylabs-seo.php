@@ -3,7 +3,7 @@
  * Plugin Name: PerryLabs SEO + AEO
  * Plugin URI:  https://perrylabs.io
  * Description: Search Engine Optimization and Answer Engine Optimization for WordPress. Unified @graph JSON-LD, per-type sitemaps, redirects with 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. No external dependencies, no nag screens.
- * Version:     2.4.0
+ * Version:     2.5.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author:      PerryLabs
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * ────────────────────────────────────────────────────────────────────── */
 
-define( 'PL_SEO_VERSION', '2.4.0' );
+define( 'PL_SEO_VERSION', '2.5.0' );
 define( 'PL_SEO_CODENAME', 'Signal Boost' );
 define( 'PL_SEO_PLUGIN_FILE', __FILE__ );
 define( 'PL_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -117,6 +117,12 @@ $plseo_classes = array(
 	// Open Graph image generator (PHP/GD).
 	'includes/class-og-image.php',
 
+	// Importer for Yoast SEO / RankMath per-post meta.
+	'includes/class-importer.php',
+
+	// WooCommerce Product / Offer / Review schema (no-op when WC isn't loaded).
+	'includes/class-woocommerce.php',
+
 	// Admin layer.
 	'includes/admin/class-admin-actions.php',
 	'includes/admin/class-redirects-screen.php',
@@ -126,6 +132,10 @@ $plseo_classes = array(
 	'includes/admin/class-search-log-screen.php',
 	'includes/admin/class-bulk-alt-editor.php',
 	'includes/admin/class-setup-wizard.php',
+	'includes/admin/class-post-list-column.php',
+	'includes/admin/class-importer-screen.php',
+	'includes/admin/class-schema-test-screen.php',
+	'includes/admin/class-robots-preview-screen.php',
 	'includes/admin/class-admin.php',
 	'includes/admin/class-tabs.php',
 	'includes/admin/class-meta-box.php',
@@ -180,6 +190,7 @@ add_action( 'plugins_loaded', function (): void {
 	PLSEO_Block_Patterns::instance()->boot();
 	PLSEO_User_Profile::instance()->boot();
 	PLSEO_OG_Image::instance()->boot();
+	PLSEO_WooCommerce::instance()->boot();
 
 	// Admin-only modules.
 	if ( is_admin() ) {
@@ -188,6 +199,8 @@ add_action( 'plugins_loaded', function (): void {
 		PLSEO_Bulk_Editor::instance()->boot();
 		PLSEO_Dashboard_Widget::instance()->boot();
 		PLSEO_Setup_Wizard::instance()->boot();
+		PLSEO_Post_List_Column::instance()->boot();
+		PLSEO_Importer_Screen::boot();
 	}
 
 	// Admin bar pill — front + admin, only for users who can edit posts.

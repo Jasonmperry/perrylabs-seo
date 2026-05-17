@@ -250,11 +250,41 @@ final class PLSEO_Meta_Box {
 					<label><input type="checkbox" name="_plseo_nofollow" value="1" <?php checked( $vals['nofollow'], '1' ); ?>> <?php esc_html_e( 'Nofollow links from this post', 'perrylabs-seo' ); ?></label><br>
 					<label title="<?php esc_attr_e( 'Promotes this post in /llms.txt featured and gives it sitemap priority 1.0.', 'perrylabs-seo' ); ?>"><input type="checkbox" name="_plseo_cornerstone" value="1" <?php checked( $vals['cornerstone'], '1' ); ?>> <?php esc_html_e( 'Mark as cornerstone content', 'perrylabs-seo' ); ?></label>
 				</p>
-				<p>
-					<label for="plseo-hreflang"><strong><?php esc_html_e( 'Hreflang alternates', 'perrylabs-seo' ); ?></strong></label><br>
-					<textarea id="plseo-hreflang" name="_plseo_hreflang" rows="4" class="widefat code" placeholder="en-US|https://example.com/en/post"><?php echo esc_textarea( $vals['hreflang'] ); ?></textarea>
-					<span class="description"><?php esc_html_e( 'One per line: language|url.', 'perrylabs-seo' ); ?></span>
-				</p>
+				<div class="plseo-hreflang">
+					<strong><?php esc_html_e( 'Hreflang alternates', 'perrylabs-seo' ); ?></strong>
+					<table class="widefat striped plseo-hreflang-table">
+						<thead><tr>
+							<th style="width:120px"><?php esc_html_e( 'Language', 'perrylabs-seo' ); ?></th>
+							<th><?php esc_html_e( 'URL', 'perrylabs-seo' ); ?></th>
+							<th style="width:40px"></th>
+						</tr></thead>
+						<tbody class="plseo-hreflang-body">
+							<?php
+							$existing = array_filter( array_map( 'trim', preg_split( '/\r?\n/', $vals['hreflang'] ?: '' ) ?: array() ) );
+							if ( empty( $existing ) ) {
+								echo '<tr class="plseo-hreflang-row"><td><input type="text" class="plseo-hreflang-lang" placeholder="en-US" /></td><td><input type="url" class="plseo-hreflang-url" placeholder="https://example.com/en/post" /></td><td><button type="button" class="button-link delete plseo-hreflang-del" aria-label="' . esc_attr__( 'Remove', 'perrylabs-seo' ) . '">&times;</button></td></tr>';
+							} else {
+								foreach ( $existing as $line ) {
+									if ( ! str_contains( $line, '|' ) ) { continue; }
+									[ $lang, $url ] = array_map( 'trim', explode( '|', $line, 2 ) );
+									printf(
+										'<tr class="plseo-hreflang-row"><td><input type="text" class="plseo-hreflang-lang" value="%s" placeholder="en-US" /></td><td><input type="url" class="plseo-hreflang-url" value="%s" placeholder="https://example.com/en/post" /></td><td><button type="button" class="button-link delete plseo-hreflang-del" aria-label="%s">&times;</button></td></tr>',
+										esc_attr( $lang ),
+										esc_attr( $url ),
+										esc_attr__( 'Remove', 'perrylabs-seo' )
+									);
+								}
+							}
+							?>
+						</tbody>
+					</table>
+					<p>
+						<button type="button" class="button plseo-hreflang-add">+ <?php esc_html_e( 'Add language', 'perrylabs-seo' ); ?></button>
+					</p>
+					<!-- Hidden field that JS keeps in sync; this is what actually gets saved. -->
+					<input type="hidden" name="_plseo_hreflang" class="plseo-hreflang-sink" value="<?php echo esc_attr( $vals['hreflang'] ); ?>" />
+					<p class="description"><?php esc_html_e( 'Use BCP-47 codes like en-US, fr-CA, es. The URL should be the absolute permalink of the alternate-language version of this same page.', 'perrylabs-seo' ); ?></p>
+				</div>
 			</div>
 
 			<div class="plseo-mb__panel" data-panel="analysis">

@@ -40,6 +40,42 @@
 			$( '#' + $c.data( 'target' ) ).on( 'input keyup change', function () { updateCounter( $c ); } );
 		} );
 
+		// Hreflang table — keeps a hidden textarea-equivalent ("lang|url\nlang|url")
+		// in sync with the row-based UI so the existing save handler doesn't
+		// need any changes.
+		function syncHreflang( $root ) {
+			const lines = [];
+			$root.find( '.plseo-hreflang-row' ).each( function () {
+				const lang = ( $( this ).find( '.plseo-hreflang-lang' ).val() || '' ).toString().trim();
+				const url  = ( $( this ).find( '.plseo-hreflang-url' ).val() || '' ).toString().trim();
+				if ( lang && url ) {
+					lines.push( lang + '|' + url );
+				}
+			} );
+			$root.find( '.plseo-hreflang-sink' ).val( lines.join( '\n' ) );
+		}
+
+		$( document ).on( 'input change', '.plseo-hreflang-row input', function () {
+			syncHreflang( $( this ).closest( '.plseo-hreflang' ) );
+		} );
+		$( document ).on( 'click', '.plseo-hreflang-add', function ( e ) {
+			e.preventDefault();
+			const $root = $( this ).closest( '.plseo-hreflang' );
+			$root.find( '.plseo-hreflang-body' ).append(
+				'<tr class="plseo-hreflang-row">' +
+					'<td><input type="text" class="plseo-hreflang-lang" placeholder="en-US" /></td>' +
+					'<td><input type="url" class="plseo-hreflang-url" placeholder="https://example.com/en/post" /></td>' +
+					'<td><button type="button" class="button-link delete plseo-hreflang-del" aria-label="Remove">&times;</button></td>' +
+				'</tr>'
+			);
+		} );
+		$( document ).on( 'click', '.plseo-hreflang-del', function ( e ) {
+			e.preventDefault();
+			const $root = $( this ).closest( '.plseo-hreflang' );
+			$( this ).closest( 'tr' ).remove();
+			syncHreflang( $root );
+		} );
+
 		// Viewport toggle (desktop / mobile) for the SERP preview.
 		$( document ).on( 'click', '.plseo-preview-viewport', function ( e ) {
 			e.preventDefault();

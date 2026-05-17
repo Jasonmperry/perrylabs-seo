@@ -4,7 +4,7 @@ Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, jso
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.1
-Stable tag: 2.4.0
+Stable tag: 2.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,17 @@ The schema graph builder accepts custom contributors via plseo_register_schema_c
 
 == Changelog ==
 
+= 2.5.0 =
+Editorial polish + migration path + WooCommerce + admin debugging tools.
+
+* Post-list SEO column on every public post-type's edit.php — at-a-glance OK / Warn / Fix badge per row, with a ★ for cornerstone posts. Memoized per request; cornerstone-sortable.
+* Yoast SEO → PerryLabs SEO + RankMath → PerryLabs SEO migration tool. Detects source-side meta in the DB, shows per-source counts, runs in batched non-destructive mode by default (existing PerryLabs SEO meta is never overwritten unless you tick the box). Admin UI at SEO + AEO → Import. Maps title, description, canonical, focus keyword, social image, cornerstone, noindex, nofollow for both sources.
+* WooCommerce schema module (PLSEO_WooCommerce). Active only when WC is loaded. Emits a complete Product node with offers (price, currency, availability, sale-end), aggregateRating (only when reviews exist), and the 5 most-recent reviews, plus image gallery and brand. Adds 'product' to the sitemap automatically.
+* Schema test screen. Pick any post by ID → render the @graph that would emit on the front-end, with a node-summary table, the full JSON-LD pretty-printed, and a one-click validator.schema.org link. Replaces the "view-source then squint" workflow.
+* Robots.txt + endpoint preview screen. Shows the live filtered robots.txt and a copy-friendly list of every public AEO/SEO endpoint URL (sitemap variants, llms.txt, IndexNow key file, REST namespace).
+* Hreflang management UI replaces the textarea with a row-based language|URL table, kept in sync with a hidden field so the existing save handler doesn't change.
+* Expanded REST API: /audit, /search-log, /schema/{id}, /llms-txt — manage_options gated. Enables external dashboards and CI checks against the plugin's state.
+
 = 2.4.0 =
 Editor + onboarding polish round:
 
@@ -170,6 +181,9 @@ Major rewrite. Codename "Signal Boost." Everything new:
 Last v1 release. Preserved on the `v1-archive` git branch.
 
 == Upgrade Notice ==
+
+= 2.5.0 =
+Post-list SEO column, Yoast / RankMath migration tool, WooCommerce Product schema, schema-test debug screen, robots.txt preview, expanded REST API. Drop-in.
 
 = 2.4.0 =
 Adds first-activation setup wizard, author E-E-A-T profile fields, AEO-ready block patterns (FAQ / HowTo / Quick answer), SERP preview viewport toggle.
