@@ -37,6 +37,9 @@ final class PLSEO_CLI {
 		\WP_CLI::add_command( 'plseo ai-visits', array( __CLASS__, 'cmd_ai_visits' ) );
 		\WP_CLI::add_command( 'plseo cache',     array( __CLASS__, 'cmd_cache' ) );
 		\WP_CLI::add_command( 'plseo settings',  array( __CLASS__, 'cmd_settings' ) );
+		\WP_CLI::add_command( 'plseo links',     array( __CLASS__, 'cmd_links' ) );
+		\WP_CLI::add_command( 'plseo audit',     array( __CLASS__, 'cmd_audit' ) );
+		\WP_CLI::add_command( 'plseo ai-fill',   array( __CLASS__, 'cmd_ai_fill' ) );
 	}
 
 	public static function cmd_redirects( array $args, array $assoc ): void {
@@ -182,5 +185,278 @@ final class PLSEO_CLI {
 			\WP_CLI::error( 'Subcommands: export' );
 		}
 		\WP_CLI::log( wp_json_encode( PLSEO_Options::all(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+	}
+
+	/**
+	 * Internal-link graph operations.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <subcommand>
+	 * : rebuild | inbound
+	 *
+	 * [--post-type=<types>]
+	 * : Comma-separated post types. Defaults to all public post types.
+	 *
+	 * [--batch=<n>]
+	 * : Posts per query batch (default 100).
+	 *
+	 * [--dry-run]
+	 * : Show what would be written without persisting.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *   wp plseo links rebuild
+	 *   wp plseo links rebuild --post-type=post,page
+	 *   wp plseo links inbound 42
+	 */
+	public static function cmd_links( array $args, array $assoc ): void {
+		$sub = $args[0] ?? '';
+		array_shift( $args );
+
+		switch ( $sub ) {
+			case 'rebuild':
+				self::links_rebuild( $assoc );
+				return;
+			case 'inbound':
+				$id = (int) ( $args[0] ?? 0 );
+				if ( $id < 1 ) {
+					\WP_CLI::error( 'Usage: wp plseo links inbound <post-id>' );
+				}
+				$n = PLSEO_Link_Graph::instance()->inbound_count( $id );
+				\WP_CLI::log( sprintf( 'post %d has %d inbound internal link(s)', $id, $n ) );
+				return;
+			default:
+				\WP_CLI::error( 'Subcommands: rebuild, inbound' );
+		}
+	}
+
+	private static function links_rebuild( array $assoc ): void {
+		$types_raw = (string) ( $assoc['post-type'] ?? '' );
+		if ( '' === $types_raw ) {
+			$types = array_values( get_post_types( array( 'public' => true ), 'names' ) );
+			$types = array_values( array_filter( $types, static fn( $t ) => 'attachment' !== $t ) );
+		} else {
+			$types = array_map( 'sanitize_key', explode( ',', $types_raw ) );
+		}
+		$batch   = max( 1, (int) ( $assoc['batch'] ?? 100 ) );
+		$dry_run = isset( $assoc['dry-run'] );
+
+		$page    = 1;
+		$written = 0;
+		$cleared = 0;
+		$graph   = PLSEO_Link_Graph::instance();
+
+		\WP_CLI::log( sprintf( 'Rebuilding link graph for: %s', implode( ', ', $types ) ) );
+		if ( $dry_run ) {
+			\WP_CLI::log( '(dry run — no writes)' );
+		}
+
+		do {
+			$posts = get_posts( array(
+				'post_type'      => $types,
+				'post_status'    => 'publish',
+				'posts_per_page' => $batch,
+				'paged'          => $page,
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
+			) );
+
+			foreach ( $posts as $post ) {
+				if ( ! $post instanceof \WP_Post ) {
+					continue;
+				}
+				if ( $dry_run ) {
+					$written++;
+				} else {
+					$before = (string) get_post_meta( $post->ID, '_plseo_internal_links', true );
+					$graph->rebuild_for_post( (int) $post->ID, $post );
+					$after = (string) get_post_meta( $post->ID, '_plseo_internal_links', true );
+					if ( '' === $after && '' !== $before ) {
+						$cleared++;
+					} elseif ( '' !== $after ) {
+						$written++;
+					}
+				}
+			}
+			\WP_CLI::log( sprintf( '  page %d: %d post(s) processed', $page, count( $posts ) ) );
+			$page++;
+		} while ( count( $posts ) === $batch );
+
+		\WP_CLI::success( sprintf( 'Wrote %d, cleared %d.', $written, $cleared ) );
+	}
+
+	/**
+	 * Site-audit operations.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <subcommand>
+	 * : run | counts | bust
+	 *
+	 * ## EXAMPLES
+	 *
+	 *   wp plseo audit run
+	 *   wp plseo audit counts
+	 *   wp plseo audit bust
+	 */
+	public static function cmd_audit( array $args, array $assoc ): void {
+		$sub = $args[0] ?? '';
+		switch ( $sub ) {
+			case 'run':
+				$r = PLSEO_Audit::instance()->run();
+				\WP_CLI::log( sprintf(
+					'Scanned %d of %d eligible post(s).',
+					(int) $r['scanned'],
+					(int) ( $r['total_eligible'] ?? $r['scanned'] )
+				) );
+				foreach ( $r['counts'] as $check => $n ) {
+					if ( $n > 0 ) {
+						\WP_CLI::log( sprintf( '  %-26s %d', $check, $n ) );
+					}
+				}
+				\WP_CLI::success( 'Done.' );
+				return;
+			case 'counts':
+				$r = PLSEO_Audit::instance()->results();
+				\WP_CLI\Utils\format_items(
+					(string) ( $assoc['format'] ?? 'table' ),
+					array_map(
+						static fn( $check, $n ) => array( 'check' => $check, 'count' => $n ),
+						array_keys( $r['counts'] ),
+						array_values( $r['counts'] )
+					),
+					array( 'check', 'count' )
+				);
+				return;
+			case 'bust':
+				PLSEO_Audit::instance()->bust_cache();
+				\WP_CLI::success( 'Audit cache cleared.' );
+				return;
+			default:
+				\WP_CLI::error( 'Subcommands: run, counts, bust' );
+		}
+	}
+
+	/**
+	 * AI-generate SEO meta for posts that don't have any yet.
+	 *
+	 * Calls Claude (claude-haiku-4-5) to draft title/description/focus_keyword/
+	 * quick_answer for each post and writes them to `_plseo_*` meta.
+	 *
+	 * Requires an API key — see PLSEO_AI_Fill::api_key() for resolution order.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--post-type=<types>]
+	 * : Comma-separated post types. Defaults to all public types except attachment.
+	 *
+	 * [--limit=<n>]
+	 * : Maximum posts to process in this run (default 50). Useful for resuming
+	 *   across multiple invocations on large sites.
+	 *
+	 * [--overwrite]
+	 * : Re-generate meta even for posts that already have _plseo_title.
+	 *   Default: skip those.
+	 *
+	 * [--dry-run]
+	 * : Show what would be written without calling the API or persisting.
+	 *
+	 * [--sleep=<ms>]
+	 * : Delay between API calls in milliseconds (default 0). Use to stay
+	 *   under your account's rate limit on large runs.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *   # Fill the first 50 posts on a fresh install
+	 *   wp plseo ai-fill
+	 *
+	 *   # Just news, with a half-second pause between calls
+	 *   wp plseo ai-fill --post-type=biobuzz_news --limit=200 --sleep=500
+	 *
+	 *   # Re-generate everything
+	 *   wp plseo ai-fill --overwrite --limit=1000
+	 */
+	public static function cmd_ai_fill( array $args, array $assoc ): void {
+		$key = PLSEO_AI_Fill::api_key();
+		if ( '' === $key ) {
+			\WP_CLI::error( 'No Claude API key. Define PLSEO_ANTHROPIC_API_KEY in wp-config.php or set ANTHROPIC_API_KEY env var.' );
+		}
+
+		$types_raw = (string) ( $assoc['post-type'] ?? '' );
+		if ( '' === $types_raw ) {
+			$types = array_values( get_post_types( array( 'public' => true ), 'names' ) );
+			$types = array_values( array_filter( $types, static fn( $t ) => 'attachment' !== $t ) );
+		} else {
+			$types = array_map( 'sanitize_key', explode( ',', $types_raw ) );
+		}
+
+		$limit     = max( 1, (int) ( $assoc['limit'] ?? 50 ) );
+		$overwrite = isset( $assoc['overwrite'] );
+		$dry_run   = isset( $assoc['dry-run'] );
+		$sleep_ms  = max( 0, (int) ( $assoc['sleep'] ?? 0 ) );
+
+		$query_args = array(
+			'post_type'      => $types,
+			'post_status'    => 'publish',
+			'posts_per_page' => $limit,
+			'orderby'        => 'modified',
+			'order'          => 'DESC',
+		);
+		if ( ! $overwrite ) {
+			$query_args['meta_query'] = array(
+				'relation' => 'OR',
+				array( 'key' => '_plseo_title', 'compare' => 'NOT EXISTS' ),
+				array( 'key' => '_plseo_title', 'value' => '',           'compare' => '=' ),
+			);
+		}
+
+		$posts = get_posts( $query_args );
+		if ( empty( $posts ) ) {
+			\WP_CLI::success( 'Nothing to fill — all targeted posts already have _plseo_title.' );
+			return;
+		}
+
+		\WP_CLI::log( sprintf(
+			'Filling %d post(s) [%s] — overwrite=%s, dry-run=%s',
+			count( $posts ),
+			implode( ',', $types ),
+			$overwrite ? 'yes' : 'no',
+			$dry_run ? 'yes' : 'no'
+		) );
+
+		$ok       = 0;
+		$failed   = 0;
+		$progress = method_exists( '\WP_CLI\Utils', 'make_progress_bar' )
+			? \WP_CLI\Utils\make_progress_bar( 'Generating', count( $posts ) )
+			: null;
+
+		foreach ( $posts as $post ) {
+			if ( ! $post instanceof \WP_Post ) {
+				if ( $progress ) { $progress->tick(); }
+				continue;
+			}
+			if ( $dry_run ) {
+				\WP_CLI::log( sprintf( '  [dry] would generate for #%d %s', $post->ID, mb_substr( $post->post_title, 0, 60 ) ) );
+				if ( $progress ) { $progress->tick(); }
+				continue;
+			}
+
+			$meta = PLSEO_AI_Fill::generate_for_post( $post );
+			if ( is_wp_error( $meta ) ) {
+				$failed++;
+				\WP_CLI::warning( sprintf( 'post %d: %s', $post->ID, $meta->get_error_message() ) );
+			} else {
+				PLSEO_AI_Fill::persist( (int) $post->ID, $meta );
+				$ok++;
+			}
+			if ( $progress ) { $progress->tick(); }
+			if ( $sleep_ms > 0 ) {
+				usleep( $sleep_ms * 1000 );
+			}
+		}
+		if ( $progress ) { $progress->finish(); }
+
+		\WP_CLI::success( sprintf( 'Filled %d post(s); %d failed.', $ok, $failed ) );
 	}
 }

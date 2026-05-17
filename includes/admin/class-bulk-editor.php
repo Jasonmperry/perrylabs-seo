@@ -52,7 +52,7 @@ final class PLSEO_Bulk_Editor {
 		$message = isset( $_GET['plseo_status'] ) ? sanitize_key( wp_unslash( (string) $_GET['plseo_status'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		?>
 		<div class="wrap plseo-wrap">
-			<h1><?php esc_html_e( 'Bulk SEO editor', 'perrylabs-seo' ); ?></h1>
+			<?php PLSEO_Admin::page_header( __( 'Bulk SEO editor', 'perrylabs-seo' ) ); ?>
 			<p class="description"><?php esc_html_e( 'Edit titles and descriptions across many posts in one screen. Empty cells fall back to the title template.', 'perrylabs-seo' ); ?></p>
 
 			<?php if ( 'saved' === $message ) : ?>
@@ -128,6 +128,8 @@ final class PLSEO_Bulk_Editor {
 				echo '</div></div>';
 			}
 			?>
+
+			<?php PLSEO_Admin::page_footer(); ?>
 		</div>
 		<?php
 	}

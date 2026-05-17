@@ -50,7 +50,7 @@ final class PLSEO_Audit {
 
 	private const TRANSIENT = 'plseo_audit_results_v1';
 	private const TTL       = HOUR_IN_SECONDS;
-	private const BATCH     = 500; // Posts examined per run.
+	private const BATCH     = 500; // Posts examined per run — pagination shown in UI.
 
 	public static function instance(): self {
 		return self::$instance ??= new self();
@@ -78,10 +78,23 @@ final class PLSEO_Audit {
 	/**
 	 * Force a fresh audit. Returns the same shape as results().
 	 *
-	 * @return array{generated_at:int,counts:array<string,int>,findings:array<string,array<int,array{post_id:int,detail:string}>>,scanned:int}
+	 * Caps at BATCH posts per run, sorted by most-recently-modified so a large
+	 * site's freshest content is always covered. `total_eligible` is the full
+	 * publish-count across configured types; `scanned` is what we actually
+	 * examined. Surfacing both prevents the "silent cap" surprise where users
+	 * thought their 5000-post site had been fully scanned at 500.
+	 *
+	 * @return array{generated_at:int,counts:array<string,int>,findings:array<string,array<int,array{post_id:int,detail:string}>>,scanned:int,total_eligible:int,capped:bool}
 	 */
 	public function run(): array {
 		$types = (array) PLSEO_Options::get( 'sitemap_post_types', array( 'post', 'page' ) );
+
+		// Real total across all configured post types (not capped).
+		$total_eligible = 0;
+		foreach ( $types as $t ) {
+			$counts          = wp_count_posts( $t );
+			$total_eligible += $counts && isset( $counts->publish ) ? (int) $counts->publish : 0;
+		}
 
 		$posts = get_posts( array(
 			'post_type'      => $types,
@@ -91,7 +104,7 @@ final class PLSEO_Audit {
 			'order'          => 'DESC',
 		) );
 
-		$findings = $this->blank_findings_bucket();
+		$findings   = $this->blank_findings_bucket();
 		$title_seen = array();
 		$desc_seen  = array();
 
@@ -107,10 +120,12 @@ final class PLSEO_Audit {
 
 		$counts = array_map( 'count', $findings );
 		$out    = array(
-			'generated_at' => time(),
-			'counts'       => $counts,
-			'findings'     => $findings,
-			'scanned'      => count( $posts ),
+			'generated_at'   => time(),
+			'counts'         => $counts,
+			'findings'       => $findings,
+			'scanned'        => count( $posts ),
+			'total_eligible' => $total_eligible,
+			'capped'         => $total_eligible > count( $posts ),
 		);
 
 		set_transient( self::TRANSIENT, $out, self::TTL );
@@ -198,9 +213,9 @@ final class PLSEO_Audit {
 		}
 
 		// Broken outbound internal links (resolved IDs that no longer exist).
-		$out_ids = (array) get_post_meta( $post->ID, '_plseo_internal_links', true );
+		$out_raw = (string) get_post_meta( $post->ID, '_plseo_internal_links', true );
+		$out_ids = '' !== $out_raw ? PLSEO_Link_Graph::parse_targets( $out_raw ) : array();
 		foreach ( $out_ids as $tid ) {
-			$tid = (int) $tid;
 			if ( $tid > 0 && 'publish' !== get_post_status( $tid ) ) {
 				$findings['broken_internal_link'][] = $this->find_row( $post, sprintf( __( 'Link → post #%d (no longer published)', 'perrylabs-seo' ), $tid ) );
 			}

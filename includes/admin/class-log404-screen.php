@@ -20,7 +20,7 @@ final class PLSEO_Log404_Screen {
 		$rows = PLSEO_404_Log::instance()->recent( 100 );
 		?>
 		<div class="wrap plseo-wrap">
-			<h1><?php esc_html_e( '404 log', 'perrylabs-seo' ); ?></h1>
+			<?php PLSEO_Admin::page_header( __( '404 log', 'perrylabs-seo' ) ); ?>
 			<p class="description"><?php esc_html_e( 'URLs visitors are trying to reach that no longer exist. Promote any of them into a redirect with one click.', 'perrylabs-seo' ); ?></p>
 
 			<table class="wp-list-table widefat fixed striped">
@@ -63,6 +63,8 @@ final class PLSEO_Log404_Screen {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+
+			<?php PLSEO_Admin::page_footer(); ?>
 		</div>
 		<?php
 	}

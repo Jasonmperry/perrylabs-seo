@@ -98,9 +98,30 @@ final class PLSEO_Admin {
 			return;
 		}
 
-		wp_enqueue_style(  'plseo-admin', PL_SEO_PLUGIN_URL . 'assets/admin.css', array(),           PL_SEO_VERSION );
-		wp_enqueue_script( 'plseo-admin', PL_SEO_PLUGIN_URL . 'assets/admin.js',  array( 'jquery' ), PL_SEO_VERSION, true );
+		PerryLabs_Branding::enqueue_tokens(
+			PL_SEO_PLUGIN_URL . 'includes/branding/tokens.css',
+			PL_SEO_VERSION
+		);
+
+		wp_enqueue_style(  'plseo-admin', PL_SEO_PLUGIN_URL . 'assets/admin.css', array( 'perrylabs-tokens' ), PL_SEO_VERSION );
+		wp_enqueue_script( 'plseo-admin', PL_SEO_PLUGIN_URL . 'assets/admin.js',  array( 'jquery' ),           PL_SEO_VERSION, true );
 		wp_enqueue_media();
+	}
+
+	/**
+	 * Render the standard PerryLabs branded header for any SEO admin page.
+	 *
+	 * @param string $title Page heading (the per-screen subtitle).
+	 */
+	public static function page_header( string $title ): void {
+		PerryLabs_Branding::header( $title, PL_SEO_VERSION );
+	}
+
+	/**
+	 * Render the standard PerryLabs branded footer.
+	 */
+	public static function page_footer(): void {
+		PerryLabs_Branding::footer();
 	}
 
 	/* ───────────────────────── settings page ───────────────────────── */
@@ -116,9 +137,8 @@ final class PLSEO_Admin {
 		}
 		?>
 		<div class="wrap plseo-wrap">
-			<h1><?php esc_html_e( 'PerryLabs SEO + AEO', 'perrylabs-seo' ); ?>
-				<span class="plseo-codename"><?php echo esc_html( PL_SEO_CODENAME ); ?> · v<?php echo esc_html( PL_SEO_VERSION ); ?></span>
-			</h1>
+			<?php self::page_header( __( 'SEO + AEO', 'perrylabs-seo' ) ); ?>
+			<p class="plseo-codename"><?php echo esc_html( PL_SEO_CODENAME ); ?></p>
 			<nav class="nav-tab-wrapper plseo-tabs">
 				<?php foreach ( $tabs as $slug => $label ) : ?>
 					<a class="nav-tab <?php echo $slug === $current ? 'nav-tab-active' : ''; ?>"
@@ -138,6 +158,8 @@ final class PLSEO_Admin {
 			</form>
 
 			<?php if ( 'tools' === $current ) { $this->render_tools_actions(); } ?>
+
+			<?php self::page_footer(); ?>
 		</div>
 		<?php
 	}

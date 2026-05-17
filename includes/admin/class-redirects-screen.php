@@ -22,7 +22,7 @@ final class PLSEO_Redirects_Screen {
 		$rows = PLSEO_Redirects::instance()->all( 200 );
 		?>
 		<div class="wrap plseo-wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Redirects', 'perrylabs-seo' ); ?></h1>
+			<?php PLSEO_Admin::page_header( __( 'Redirects', 'perrylabs-seo' ) ); ?>
 			<p class="description"><?php esc_html_e( 'Match exact paths or PCRE patterns. Targets starting with "/" resolve against your home URL.', 'perrylabs-seo' ); ?></p>
 
 			<h2 class="title"><?php esc_html_e( 'Add redirect', 'perrylabs-seo' ); ?></h2>
@@ -120,6 +120,8 @@ final class PLSEO_Redirects_Screen {
 					</form>
 				</div>
 			</div>
+
+			<?php PLSEO_Admin::page_footer(); ?>
 		</div>
 		<?php
 	}

@@ -133,6 +133,7 @@ final class PLSEO_Options {
 			// ── Image SEO ──────────────────────────────────────────
 			'image_auto_alt'             => true,
 			'image_optimize_upload_slug' => false,
+			'og_image_auto'              => true,
 
 			// ── Core Web Vitals ────────────────────────────────────
 			'perf_resource_hints'    => true,

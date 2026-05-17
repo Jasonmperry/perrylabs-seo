@@ -3,7 +3,7 @@
  * Plugin Name: PerryLabs SEO + AEO
  * Plugin URI:  https://perrylabs.io
  * Description: Search Engine Optimization and Answer Engine Optimization for WordPress. Unified @graph JSON-LD, per-type sitemaps, redirects with 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. No external dependencies, no nag screens.
- * Version:     2.2.0
+ * Version:     2.3.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author:      PerryLabs
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * ────────────────────────────────────────────────────────────────────── */
 
-define( 'PL_SEO_VERSION', '2.2.0' );
+define( 'PL_SEO_VERSION', '2.3.0' );
 define( 'PL_SEO_CODENAME', 'Signal Boost' );
 define( 'PL_SEO_PLUGIN_FILE', __FILE__ );
 define( 'PL_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -38,6 +38,9 @@ define( 'PL_SEO_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
  * ────────────────────────────────────────────────────────────────────── */
 
 $plseo_classes = array(
+	// Shared branding.
+	'includes/branding/class-perrylabs-branding.php',
+
 	// Core infrastructure.
 	'includes/class-options.php',
 	'includes/class-migrations.php',
@@ -99,6 +102,15 @@ $plseo_classes = array(
 	// Site audit (Semrush-style aggregate health report).
 	'includes/class-audit.php',
 
+	// AI fill (Claude API client used by the wp plseo ai-fill command).
+	'includes/class-ai-fill.php',
+
+	// Gutenberg sidebar panel.
+	'includes/class-block-editor.php',
+
+	// Open Graph image generator (PHP/GD).
+	'includes/class-og-image.php',
+
 	// Admin layer.
 	'includes/admin/class-admin-actions.php',
 	'includes/admin/class-redirects-screen.php',
@@ -157,6 +169,8 @@ add_action( 'plugins_loaded', function (): void {
 	PLSEO_Canonical::instance()->boot();
 	PLSEO_Reading_Time::instance()->boot();
 	PLSEO_Search_Log::instance()->boot();
+	PLSEO_Block_Editor::instance()->boot();
+	PLSEO_OG_Image::instance()->boot();
 
 	// Admin-only modules.
 	if ( is_admin() ) {

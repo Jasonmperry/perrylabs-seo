@@ -359,19 +359,31 @@ final class PLSEO_Meta_Tags {
 	}
 
 	private function resolve_social_image(): string {
+		$post = null;
 		if ( is_singular() ) {
 			$post = get_queried_object();
-			if ( $post instanceof \WP_Post ) {
-				$override = (string) plseo_get_post_meta( $post->ID, 'social_image', '' );
-				if ( '' !== $override ) {
-					return $override;
-				}
-				$thumb = get_the_post_thumbnail_url( $post, 'full' );
-				if ( is_string( $thumb ) && '' !== $thumb ) {
-					return $thumb;
-				}
+		}
+
+		if ( $post instanceof \WP_Post ) {
+			$override = (string) plseo_get_post_meta( $post->ID, 'social_image', '' );
+			if ( '' !== $override ) {
+				return $override;
+			}
+			$thumb = get_the_post_thumbnail_url( $post, 'full' );
+			if ( is_string( $thumb ) && '' !== $thumb ) {
+				return $thumb;
 			}
 		}
-		return (string) PLSEO_Options::get( 'default_social_image', '' );
+
+		$default = (string) PLSEO_Options::get( 'default_social_image', '' );
+
+		/**
+		 * Fallback opportunity: the OG image generator hooks here to render
+		 * a per-post card when no image is available anywhere else.
+		 *
+		 * @param string        $default Default social image URL (may be empty).
+		 * @param \WP_Post|null $post    Queried post when singular.
+		 */
+		return (string) apply_filters( 'plseo_resolve_social_image', $default, $post );
 	}
 }

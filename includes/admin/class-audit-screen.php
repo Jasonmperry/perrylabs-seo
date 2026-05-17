@@ -39,18 +39,47 @@ final class PLSEO_Audit_Screen {
 		);
 		?>
 		<div class="wrap plseo-wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Site audit', 'perrylabs-seo' ); ?></h1>
-			<a href="<?php echo esc_url( $refresh_url ); ?>" class="page-title-action"><?php esc_html_e( 'Re-run now', 'perrylabs-seo' ); ?></a>
+			<?php PLSEO_Admin::page_header( __( 'Site audit', 'perrylabs-seo' ) ); ?>
+			<p>
+				<a href="<?php echo esc_url( $refresh_url ); ?>" class="button"><?php esc_html_e( 'Re-run now', 'perrylabs-seo' ); ?></a>
+			</p>
 			<p class="description">
 				<?php
-				printf(
-					/* translators: %1$s: number of posts scanned, %2$s: relative time. */
-					esc_html__( 'Scanned %1$d post(s). Last run %2$s.', 'perrylabs-seo' ),
-					(int) $results['scanned'],
-					esc_html( human_time_diff( (int) $results['generated_at'] ) . ' ' . __( 'ago', 'perrylabs-seo' ) )
-				);
+				$scanned   = (int) ( $results['scanned'] ?? 0 );
+				$total     = (int) ( $results['total_eligible'] ?? $scanned );
+				$capped    = ! empty( $results['capped'] );
+				$relative  = human_time_diff( (int) $results['generated_at'] ) . ' ' . __( 'ago', 'perrylabs-seo' );
+				if ( $capped ) {
+					printf(
+						/* translators: %1$s scanned count, %2$s total eligible, %3$s relative time */
+						esc_html__( 'Scanned %1$s of %2$s eligible post(s) — newest first. Last run %3$s.', 'perrylabs-seo' ),
+						esc_html( number_format_i18n( $scanned ) ),
+						esc_html( number_format_i18n( $total ) ),
+						esc_html( $relative )
+					);
+				} else {
+					printf(
+						/* translators: %1$s scanned count, %2$s relative time */
+						esc_html__( 'Scanned all %1$s post(s). Last run %2$s.', 'perrylabs-seo' ),
+						esc_html( number_format_i18n( $scanned ) ),
+						esc_html( $relative )
+					);
+				}
 				?>
 			</p>
+			<?php if ( $capped ) : ?>
+				<div class="notice notice-info inline">
+					<p>
+						<?php
+						printf(
+							/* translators: %d batch cap */
+							esc_html__( 'Audit examines up to %d posts per run, ordered by most-recently-modified. Older posts cycle in as newer ones drop out — content opportunities in your archive aren\'t missed permanently, but the freshest content is always covered first.', 'perrylabs-seo' ),
+							500
+						);
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
 
 			<div class="plseo-stat-row">
 				<div class="plseo-stat plseo-stat--error"><span class="plseo-stat-num"><?php echo number_format_i18n( $totals['error'] ); ?></span><span class="plseo-stat-label"><?php esc_html_e( 'Errors', 'perrylabs-seo' ); ?></span></div>
@@ -63,6 +92,8 @@ final class PLSEO_Audit_Screen {
 				self::render_severity_group( $sev, $sev_label, $results['findings'], $catalog );
 			}
 			?>
+
+			<?php PLSEO_Admin::page_footer(); ?>
 		</div>
 		<?php
 	}

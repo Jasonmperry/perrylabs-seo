@@ -23,7 +23,7 @@ final class PLSEO_AEO_Dashboard_Screen {
 		$total  = $log->total_hits( 30 );
 		?>
 		<div class="wrap plseo-wrap">
-			<h1><?php esc_html_e( 'AEO dashboard', 'perrylabs-seo' ); ?></h1>
+			<?php PLSEO_Admin::page_header( __( 'AEO dashboard', 'perrylabs-seo' ) ); ?>
 			<p class="description"><?php esc_html_e( 'AI crawler activity over the last 30 days. Each hit is an answer engine looking at your content — the strongest free signal that your AEO work is being indexed.', 'perrylabs-seo' ); ?></p>
 
 			<div class="plseo-stat-row">
@@ -66,6 +66,8 @@ final class PLSEO_AEO_Dashboard_Screen {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+
+			<?php PLSEO_Admin::page_footer(); ?>
 		</div>
 		<?php
 	}

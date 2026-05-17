@@ -38,6 +38,12 @@ final class PLSEO_Link_Graph {
 
 	/**
 	 * Scan a post's content for internal links and persist the resolved post IDs.
+	 *
+	 * Storage format: comma-bracketed string like ",5,7,12," (not a PHP-serialized
+	 * array). Bracketing both ends lets inbound_count() use the LIKE pattern
+	 * `%,N,%` to count references unambiguously — a serialized array would have
+	 * its sequential indices (i:0;, i:1;, …) collide with value-side IDs when
+	 * the count grows past the matched ID number.
 	 */
 	public function rebuild_for_post( int $post_id, \WP_Post $post ): void {
 		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
@@ -52,7 +58,26 @@ final class PLSEO_Link_Graph {
 			delete_post_meta( $post_id, self::META_OUT );
 			return;
 		}
-		update_post_meta( $post_id, self::META_OUT, $targets );
+		update_post_meta( $post_id, self::META_OUT, self::serialize_targets( $targets ) );
+	}
+
+	/**
+	 * @param array<int,int> $ids
+	 */
+	public static function serialize_targets( array $ids ): string {
+		$clean = array_values( array_unique( array_filter( array_map( 'intval', $ids ), static fn( $i ) => $i > 0 ) ) );
+		return ',' . implode( ',', $clean ) . ',';
+	}
+
+	/**
+	 * @return array<int,int>
+	 */
+	public static function parse_targets( string $serialized ): array {
+		$serialized = trim( $serialized, ',' );
+		if ( '' === $serialized ) {
+			return array();
+		}
+		return array_map( 'intval', explode( ',', $serialized ) );
 	}
 
 	/**
@@ -95,9 +120,12 @@ final class PLSEO_Link_Graph {
 			return $this->inbound_cache[ $post_id ];
 		}
 		global $wpdb;
-		// LIKE-match the serialized array. Acceptable for sites up to ~10k posts;
-		// for larger sites the caller should switch to a precomputed snapshot.
-		$needle = '%i:' . $post_id . ';%';
+		// Match against the comma-bracketed string format. `%,5,%` matches the
+		// stored value `,5,7,12,` but NOT a post that happens to have 5 outbound
+		// links (which would be `,1,2,3,4,5,` — also matches, but correctly).
+		// Crucially, it does NOT match against a serialized-array index like
+		// `i:5;` which was the v1 bug.
+		$needle = '%,' . $post_id . ',%';
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$n = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value LIKE %s",

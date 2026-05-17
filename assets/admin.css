@@ -1,37 +1,44 @@
-/* PerryLabs SEO + AEO — admin styles */
+/* PerryLabs SEO + AEO — admin styles
+ *
+ * Built on the shared PerryLabs design tokens (includes/branding/tokens.css).
+ * Plugin-specific rules only — header/footer use the standard PerryLabs chrome.
+ */
 
-.plseo-wrap h1 .plseo-codename {
+.plseo-wrap .plseo-codename {
+	display: inline-block;
+	margin: 0 0 var(--pl-space-3);
+	font-family: var(--pl-font-mono);
 	font-size: 12px;
-	font-weight: normal;
-	color: #646970;
-	margin-left: 12px;
-	vertical-align: middle;
+	color: var(--pl-neutral-600);
 	letter-spacing: 0.5px;
 	text-transform: uppercase;
 }
 
-.plseo-tabs { margin-top: 1em; }
+.plseo-tabs {
+	margin-top: var(--pl-space-3);
+}
 
 .plseo-tool-cards {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-	gap: 16px;
-	margin-top: 1em;
+	gap: var(--pl-space-4);
+	margin-top: var(--pl-space-3);
 }
 
 .plseo-card {
 	background: #fff;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
+	border: 1px solid var(--pl-neutral-300);
+	border-radius: var(--pl-radius-md);
 	padding: 14px 18px;
 }
 
 .plseo-card h3 {
 	margin-top: 0;
+	font-family: var(--pl-font-display);
 }
 
 .plseo-card p {
-	color: #50575e;
+	color: var(--pl-neutral-700);
 	font-size: 13px;
 }
 
@@ -39,39 +46,47 @@
 .plseo-image-field { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .plseo-image-field .button { margin-left: 4px; }
 .plseo-image-preview-wrap { flex-basis: 100%; margin-top: 6px; }
-.plseo-image-preview { max-width: 200px; max-height: 120px; border: 1px solid #c3c4c7; border-radius: 2px; padding: 2px; background: #fff; }
+.plseo-image-preview {
+	max-width: 200px;
+	max-height: 120px;
+	border: 1px solid var(--pl-neutral-300);
+	border-radius: var(--pl-radius-sm);
+	padding: 2px;
+	background: #fff;
+}
 
 /* AI crawler matrix */
-.plseo-ai-matrix th, .plseo-ai-matrix td { padding: 8px 12px; vertical-align: middle; }
-.plseo-ai-matrix th { background: #f6f7f7; text-align: left; }
+.plseo-ai-matrix th, .plseo-ai-matrix td { padding: var(--pl-space-2) var(--pl-space-3); vertical-align: middle; }
+.plseo-ai-matrix th { background: var(--pl-neutral-50); text-align: left; }
 .plseo-ai-matrix select { min-width: 180px; }
 
 /* AEO dashboard stats */
 .plseo-stat-row {
 	display: flex;
-	gap: 12px;
-	margin: 1em 0 2em;
+	gap: var(--pl-space-3);
+	margin: var(--pl-space-3) 0 var(--pl-space-6);
 	flex-wrap: wrap;
 }
 .plseo-stat {
 	flex: 1 1 200px;
 	background: #fff;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
+	border: 1px solid var(--pl-neutral-300);
+	border-radius: var(--pl-radius-md);
 	padding: 18px;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 .plseo-stat-num {
+	font-family: var(--pl-font-display);
 	font-size: 28px;
 	font-weight: 600;
-	color: #1d2327;
+	color: var(--pl-neutral-900);
 	line-height: 1;
 }
 .plseo-stat-label {
 	font-size: 12px;
-	color: #646970;
+	color: var(--pl-neutral-700);
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 }
@@ -100,33 +115,34 @@
 }
 .plseo-pill--pass { background: #1e8a3c; }
 .plseo-pill--warn { background: #b58400; }
-.plseo-pill--fail { background: #b62917; }
+.plseo-pill--fail { background: var(--pl-magenta); }
 
 /* Bulk editor table */
 .plseo-bulk-filter {
-	margin: 1em 0;
+	margin: var(--pl-space-3) 0;
 	display: flex;
-	gap: 12px;
+	gap: var(--pl-space-3);
 	align-items: center;
 }
 
 /* Site audit */
-.plseo-stat--error  { border-top: 3px solid #b62917; }
+.plseo-stat--error  { border-top: 3px solid var(--pl-magenta); }
 .plseo-stat--warn   { border-top: 3px solid #b58400; }
-.plseo-stat--notice { border-top: 3px solid #2271b1; }
+.plseo-stat--notice { border-top: 3px solid var(--pl-aqua); }
 
 .plseo-audit-group {
 	margin: 28px 0 6px;
+	font-family: var(--pl-font-display);
 	font-size: 18px;
 }
-.plseo-audit-group--error   { color: #b62917; }
+.plseo-audit-group--error   { color: var(--pl-magenta); }
 .plseo-audit-group--warning { color: #b58400; }
-.plseo-audit-group--notice  { color: #2271b1; }
+.plseo-audit-group--notice  { color: var(--pl-aqua); }
 
 .plseo-audit-check {
 	background: #fff;
-	border: 1px solid #dcdcde;
-	border-radius: 4px;
+	border: 1px solid var(--pl-neutral-200);
+	border-radius: var(--pl-radius-sm);
 	margin-bottom: 10px;
 	padding: 10px 14px;
 }
@@ -135,21 +151,44 @@
 	list-style: none;
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: var(--pl-space-3);
 }
 .plseo-audit-check > summary::-webkit-details-marker { display: none; }
 .plseo-audit-check[open] > summary { margin-bottom: 8px; }
 .plseo-audit-check .plseo-audit-help {
-	color: #646970;
+	color: var(--pl-neutral-600);
 	font-size: 12px;
 	margin-left: auto;
 }
 .plseo-audit-table { margin-top: 4px; }
 .plseo-audit-clean {
 	color: #1e8a3c;
-	margin: 0 0 12px;
-	padding: 8px 14px;
+	margin: 0 0 var(--pl-space-3);
+	padding: var(--pl-space-2) 14px;
 	background: #edf7ee;
 	border-left: 3px solid #1e8a3c;
-	border-radius: 2px;
+	border-radius: var(--pl-radius-sm);
+}
+
+/* Schema display rules — row-based UI */
+.plseo-rules-table th,
+.plseo-rules-table td {
+	padding: var(--pl-space-2) var(--pl-space-3);
+	vertical-align: middle;
+}
+.plseo-rules-table input.regular-text,
+.plseo-rules-table select {
+	width: 100%;
+	min-width: 0;
+}
+.plseo-rules-del {
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	background: transparent;
+	border: 0;
+	color: var(--pl-magenta);
+}
+.plseo-rules-del:hover {
+	color: #b62917;
 }

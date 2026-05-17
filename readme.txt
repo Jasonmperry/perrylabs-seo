@@ -4,7 +4,7 @@ Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, jso
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.1
-Stable tag: 2.2.0
+Stable tag: 2.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,19 @@ The schema graph builder accepts custom contributors via plseo_register_schema_c
 
 == Changelog ==
 
+= 2.3.0 =
+Polish pass + scale-out: the AI-fill CLI, Gutenberg sidebar, OG card generator, schema-rules visual UI, and the long-tail bug fixes from the v2.2 review.
+
+* Gutenberg sidebar panel (PluginSidebar): SEO title, description, canonical, focus keyword(s), quick answer, schema-type override, social image, cornerstone, noindex, nofollow. Saves via core/editor entity-prop pipeline (no separate save button). Live character counters with good / warn / bad bands.
+* Schema display rules: replaced raw JSON textarea with a row-based UI — post_type + taxonomy + term_slug selects per rule, comma-separated emit input with autocomplete from the supported-types datalist. Sanitizer round-trips to the same JSON format the engine reads.
+* wp plseo ai-fill: Claude API (claude-haiku-4-5) command for bulk SEO meta generation. Skips posts that already have _plseo_title (resumable), supports --post-type / --limit / --overwrite / --dry-run / --sleep. API key from PLSEO_ANTHROPIC_API_KEY constant, ANTHROPIC_API_KEY env, or plseo_options[ai_fill_api_key].
+* wp plseo links rebuild: backfills the internal-link graph for sites that activated v2 after content was already written (link graph normally only populates on save_post).
+* wp plseo audit run / counts / bust: CLI access to the site-audit engine.
+* OG image generator (PHP/GD): for posts with no featured image, no per-post override, and no default social image, renders a 1200×630 brand card with the post title. Cached per-(post-id, title-hash). Falls back to no-op when GD is unavailable.
+* Link-graph LIKE-pattern bug fix: storage format changed from PHP-serialized array to comma-bracketed string (`,5,7,12,`). The old `%i:5;%` pattern matched serialized-array indices, double-counting inbound links for posts with 6+ outbound. New `%,5,%` only matches values.
+* Audit silent 500-cap: now reports "Scanned X of Y eligible post(s)" with an inline notice when capped, instead of hiding the cap behind a per-batch number.
+* Branded admin chrome on every screen: PerryLabs_Branding header + footer now wraps the settings page, Redirects, 404 log, AEO dashboard, Site audit, Search log, and Bulk image-alt screens.
+
 = 2.2.0 =
 "Best SEO things in the world" pass — closes the remaining feature gap against the paid players:
 
@@ -149,6 +162,9 @@ Major rewrite. Codename "Signal Boost." Everything new:
 Last v1 release. Preserved on the `v1-archive` git branch.
 
 == Upgrade Notice ==
+
+= 2.3.0 =
+Adds Gutenberg sidebar, visual schema-rules UI, wp plseo ai-fill / links rebuild / audit CLI commands, OG image generator. Fixes link-graph LIKE false-positives. Drop-in upgrade.
 
 = 2.2.0 =
 Adds Core Web Vitals helpers, consent-aware analytics installer, canonical-domain enforcement, wildcard redirects, 9 more schema types, reading time + auto TOC, on-site search log, bulk image alt editor.

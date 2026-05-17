@@ -1,0 +1,19 @@
+/* PerryLabs SEO + AEO — Gutenberg sidebar */
+
+.plseo-block-counter {
+	margin: -8px 0 8px;
+	font-size: 11px;
+	color: #646970;
+	text-align: right;
+}
+.plseo-block-counter--good { color: #1e8a3c; }
+.plseo-block-counter--warn { color: #b58400; }
+.plseo-block-counter--bad  { color: #b62917; }
+
+/* PluginSidebar panel — tighten WP defaults for our dense form */
+.interface-complementary-area [aria-label*="PerryLabs SEO"] .components-base-control {
+	margin-bottom: 14px;
+}
+.interface-complementary-area [aria-label*="PerryLabs SEO"] .components-panel__body {
+	border-bottom: 1px solid #f0f0f1;
+}

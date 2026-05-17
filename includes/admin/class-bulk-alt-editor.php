@@ -51,7 +51,7 @@ final class PLSEO_Bulk_Alt_Editor {
 		$status = isset( $_GET['plseo_status'] ) ? sanitize_key( wp_unslash( (string) $_GET['plseo_status'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		?>
 		<div class="wrap plseo-wrap">
-			<h1><?php esc_html_e( 'Bulk image alt editor', 'perrylabs-seo' ); ?></h1>
+			<?php PLSEO_Admin::page_header( __( 'Bulk image alt editor', 'perrylabs-seo' ) ); ?>
 			<p class="description"><?php esc_html_e( 'Most-recent image attachments. Fill in the alt text and save. Accessibility + image SEO in one screen.', 'perrylabs-seo' ); ?></p>
 
 			<?php if ( 'saved' === $status ) : ?>
@@ -116,6 +116,8 @@ final class PLSEO_Bulk_Alt_Editor {
 				echo '</div></div>';
 			}
 			?>
+
+			<?php PLSEO_Admin::page_footer(); ?>
 		</div>
 		<?php
 	}

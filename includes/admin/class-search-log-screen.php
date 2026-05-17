@@ -26,7 +26,7 @@ final class PLSEO_Search_Log_Screen {
 		$total  = $log->total_searches( 30 );
 		?>
 		<div class="wrap plseo-wrap">
-			<h1><?php esc_html_e( 'Site search log', 'perrylabs-seo' ); ?></h1>
+			<?php PLSEO_Admin::page_header( __( 'Site search log', 'perrylabs-seo' ) ); ?>
 			<p class="description"><?php esc_html_e( 'What visitors search for on your own site. The zero-result list is gold — each row is a content gap.', 'perrylabs-seo' ); ?></p>
 
 			<div class="plseo-stat-row">
@@ -69,6 +69,8 @@ final class PLSEO_Search_Log_Screen {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+
+			<?php PLSEO_Admin::page_footer(); ?>
 		</div>
 		<?php
 	}

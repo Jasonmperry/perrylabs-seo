@@ -264,32 +264,184 @@ final class PLSEO_Tabs {
 
 		// Schema display rules.
 		add_settings_section( 'plseo_schema_rules', __( 'Display rules', 'perrylabs-seo' ), static function (): void {
-			echo '<p>' . esc_html__( 'Decide which schema types emit for which posts. First matching rule wins; per-post overrides on the meta box still take priority.', 'perrylabs-seo' ) . '</p>';
-			echo '<p class="description">' . wp_kses_post( __( 'Format: JSON array of <code>{"when":{"post_type":"post","taxonomy":"category","term_slug":"reviews"},"emit":["Article","Review"]}</code> objects. Empty <code>when</code> = unconditional.', 'perrylabs-seo' ) ) . '</p>';
+			echo '<p>' . esc_html__( 'Decide which schema types emit for which posts. First matching rule wins; per-post overrides on the meta box still take priority. When no rule matches, the legacy post-type → schema map applies.', 'perrylabs-seo' ) . '</p>';
 		}, $page );
 
-		add_settings_field( 'schema_rules', __( 'Rules (JSON)', 'perrylabs-seo' ), array( __CLASS__, 'render_schema_rules_field' ), $page, 'plseo_schema_rules' );
+		add_settings_field( 'schema_rules', __( 'Rules', 'perrylabs-seo' ), array( __CLASS__, 'render_schema_rules_field' ), $page, 'plseo_schema_rules' );
 		PLSEO_Options::register_sanitizer( 'schema_rules', static function ( $v ) {
+			// JSON string (the old textarea, kept for backward compat with imports).
 			if ( is_string( $v ) ) {
 				$decoded = json_decode( $v, true );
-				$v = is_array( $decoded ) ? $decoded : array();
+				$v       = is_array( $decoded ) ? $decoded : array();
 			}
-			return PLSEO_Schema_Rules::sanitize( $v );
+			if ( ! is_array( $v ) ) {
+				return array();
+			}
+
+			// Normalize the row-based form input shape:
+			//   each row's `emit` is a comma-separated string → array of types.
+			//   empty rows (no emit) are dropped before reaching Schema_Rules::sanitize.
+			$normalized = array();
+			foreach ( $v as $row ) {
+				if ( ! is_array( $row ) ) {
+					continue;
+				}
+				$emit = $row['emit'] ?? array();
+				if ( is_string( $emit ) ) {
+					$emit = array_values( array_filter( array_map( 'trim', explode( ',', $emit ) ) ) );
+				}
+				if ( empty( $emit ) ) {
+					continue;
+				}
+				$normalized[] = array(
+					'when' => (array) ( $row['when'] ?? array() ),
+					'emit' => $emit,
+				);
+			}
+			return PLSEO_Schema_Rules::sanitize( $normalized );
 		} );
 	}
 
+	/**
+	 * Row-based UI for schema display rules. Each row collects:
+	 *   when: post_type (select), taxonomy (select), term_slug (text)
+	 *   emit: comma-separated schema types (with autocomplete via datalist)
+	 *
+	 * Add / remove rows via vanilla JS (no React). The form serializes as
+	 * plseo_options[schema_rules][N][when][post_type] etc. and the sanitizer
+	 * normalizes to the engine's array<{when,emit}> format.
+	 */
 	public static function render_schema_rules_field(): void {
-		$value = (array) PLSEO_Options::get( 'schema_rules', array() );
-		$json  = wp_json_encode( $value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
-		if ( false === $json || '[]' === $json || '' === $json ) {
-			$json = "[\n  { \"when\": { \"post_type\": \"post\" }, \"emit\": [\"Article\"] }\n]";
+		$value      = (array) PLSEO_Options::get( 'schema_rules', array() );
+		$post_types = self::public_post_types();
+		$taxonomies = self::public_taxonomies();
+		$known      = self::known_schema_types();
+		$option     = PLSEO_Options::OPTION_NAME;
+
+		echo '<div class="plseo-rules" data-option="' . esc_attr( $option ) . '">';
+
+		echo '<table class="widefat striped plseo-rules-table"><thead><tr>';
+		echo '<th style="width:18%">' . esc_html__( 'When post type', 'perrylabs-seo' ) . '</th>';
+		echo '<th style="width:18%">' . esc_html__( 'AND taxonomy', 'perrylabs-seo' ) . '</th>';
+		echo '<th style="width:18%">' . esc_html__( 'AND term slug', 'perrylabs-seo' ) . '</th>';
+		echo '<th>' . esc_html__( 'Emit schema types', 'perrylabs-seo' ) . '</th>';
+		echo '<th style="width:60px"></th>';
+		echo '</tr></thead><tbody class="plseo-rules-body">';
+
+		if ( empty( $value ) ) {
+			echo self::render_rule_row( 0, array(), $post_types, $taxonomies );
+		} else {
+			foreach ( $value as $idx => $rule ) {
+				echo self::render_rule_row( (int) $idx, (array) $rule, $post_types, $taxonomies ); // phpcs:ignore WordPress.Security.EscapeOutput
+			}
 		}
-		printf(
-			'<textarea name="%1$s[schema_rules]" rows="10" class="large-text code" spellcheck="false">%2$s</textarea>',
-			esc_attr( PLSEO_Options::OPTION_NAME ),
-			esc_textarea( (string) $json )
+
+		echo '</tbody></table>';
+
+		echo '<p><button type="button" class="button plseo-rules-add">' . esc_html__( '+ Add rule', 'perrylabs-seo' ) . '</button></p>';
+
+		// Hidden template — cloned into the table when Add is clicked.
+		echo '<template class="plseo-rules-template">';
+		echo self::render_rule_row( -1, array(), $post_types, $taxonomies ); // phpcs:ignore WordPress.Security.EscapeOutput
+		echo '</template>';
+
+		// Schema type vocabulary for the datalist (suggestion list for the emit input).
+		echo '<datalist id="plseo-rules-types">';
+		foreach ( $known as $type ) {
+			echo '<option value="' . esc_attr( $type ) . '"></option>';
+		}
+		echo '</datalist>';
+
+		echo '<p class="description">';
+		echo esc_html__( 'Emit accepts any combination of: ', 'perrylabs-seo' );
+		echo '<code>' . esc_html( implode( '</code> <code>', $known ) ) . '</code>';
+		echo '. ' . esc_html__( 'Use the special token "none" to suppress all schema for matched posts.', 'perrylabs-seo' );
+		echo '</p>';
+
+		echo '</div>';
+	}
+
+	/**
+	 * @param array<int,string>            $post_types
+	 * @param array<int,string>            $taxonomies
+	 * @param array{when?:array<string,string>,emit?:array<int,string>} $rule
+	 */
+	private static function render_rule_row( int $idx, array $rule, array $post_types, array $taxonomies ): string {
+		$option   = PLSEO_Options::OPTION_NAME;
+		$when     = (array) ( $rule['when'] ?? array() );
+		$emit     = (array) ( $rule['emit'] ?? array() );
+		$pt_val   = (string) ( $when['post_type']  ?? '' );
+		$tax_val  = (string) ( $when['taxonomy']   ?? '' );
+		$term_val = (string) ( $when['term_slug']  ?? '' );
+		$emit_str = implode( ', ', array_filter( array_map( 'strval', $emit ) ) );
+
+		// `__IDX__` is replaced by JS when cloning the template; otherwise
+		// `$idx` is used directly.
+		$key = $idx >= 0 ? (string) $idx : '__IDX__';
+
+		ob_start();
+		?>
+		<tr class="plseo-rules-row" data-row="<?php echo esc_attr( $key ); ?>">
+			<td>
+				<select name="<?php echo esc_attr( $option ); ?>[schema_rules][<?php echo esc_attr( $key ); ?>][when][post_type]">
+					<option value=""><?php esc_html_e( '— any —', 'perrylabs-seo' ); ?></option>
+					<?php foreach ( $post_types as $pt ) : ?>
+						<option value="<?php echo esc_attr( $pt ); ?>" <?php selected( $pt_val, $pt ); ?>><?php echo esc_html( $pt ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</td>
+			<td>
+				<select name="<?php echo esc_attr( $option ); ?>[schema_rules][<?php echo esc_attr( $key ); ?>][when][taxonomy]">
+					<option value=""><?php esc_html_e( '— none —', 'perrylabs-seo' ); ?></option>
+					<?php foreach ( $taxonomies as $tx ) : ?>
+						<option value="<?php echo esc_attr( $tx ); ?>" <?php selected( $tax_val, $tx ); ?>><?php echo esc_html( $tx ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</td>
+			<td>
+				<input type="text"
+				       name="<?php echo esc_attr( $option ); ?>[schema_rules][<?php echo esc_attr( $key ); ?>][when][term_slug]"
+				       value="<?php echo esc_attr( $term_val ); ?>"
+				       placeholder="<?php esc_attr_e( 'e.g. reviews', 'perrylabs-seo' ); ?>"
+				       class="regular-text" />
+			</td>
+			<td>
+				<input type="text"
+				       name="<?php echo esc_attr( $option ); ?>[schema_rules][<?php echo esc_attr( $key ); ?>][emit]"
+				       value="<?php echo esc_attr( $emit_str ); ?>"
+				       list="plseo-rules-types"
+				       placeholder="Article, FAQPage"
+				       class="regular-text" />
+			</td>
+			<td>
+				<button type="button" class="button-link delete plseo-rules-del" aria-label="<?php esc_attr_e( 'Remove rule', 'perrylabs-seo' ); ?>">&times;</button>
+			</td>
+		</tr>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/** @return array<int,string> */
+	private static function public_post_types(): array {
+		$types = array_values( get_post_types( array( 'public' => true ), 'names' ) );
+		return array_values( array_filter( $types, static fn( $t ) => 'attachment' !== $t ) );
+	}
+
+	/** @return array<int,string> */
+	private static function public_taxonomies(): array {
+		return array_values( get_taxonomies( array( 'public' => true ), 'names' ) );
+	}
+
+	/** @return array<int,string> */
+	private static function known_schema_types(): array {
+		return array(
+			'Article', 'NewsArticle', 'BlogPosting', 'TechArticle',
+			'WebPage', 'FAQPage', 'HowTo', 'Event', 'VideoObject',
+			'Person', 'LocalBusiness',
+			'Product', 'Review', 'Recipe', 'JobPosting', 'Course',
+			'SoftwareApplication', 'Book', 'ClaimReview', 'QAPage',
+			'none',
 		);
-		echo '<p class="description">' . esc_html__( 'Emit accepts: Article, NewsArticle, BlogPosting, TechArticle, Event, VideoObject, Person, LocalBusiness — plus the special token "none" to suppress schema for the matched posts.', 'perrylabs-seo' ) . '</p>';
 	}
 
 	/* ───────────────────────── AEO ───────────────────────── */
