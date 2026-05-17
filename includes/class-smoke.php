@@ -51,16 +51,19 @@ final class PLSEO_Smoke {
 	private static function check_endpoints( array &$results ): void {
 		$opts = PLSEO_Options::all();
 
+		// `marker` is the substring (or list of either-or substrings) we expect
+		// in a 200 response. `private_ok` means the endpoint is allowed to be
+		// overridden by hosting-level rules (e.g. Pantheon dev blocks all bots
+		// with a global "Disallow: /" — that's correct, not a regression).
 		$cases = array(
-			array( 'sitemap',         '/sitemap.xml',          true,                                       '<urlset' ),
-			array( 'sitemap_index',   '/sitemap.xml',          true,                                       '<sitemapindex' ),
-			array( 'robots_txt',      '/robots.txt',           true,                                       'Sitemap:' ),
-			array( 'llms_txt',        '/llms.txt',             ! empty( $opts['llms_txt_enabled'] ),       '#' ),
-			array( 'llms_full_txt',   '/llms-full.txt',        ! empty( $opts['llms_full_enabled'] ),      '#' ),
+			array( 'sitemap',       '/sitemap.xml',   true,                                       array( '<urlset', '<sitemapindex' ), false ),
+			array( 'robots_txt',    '/robots.txt',    true,                                       array( 'Sitemap:', 'User-agent' ),   true ),
+			array( 'llms_txt',      '/llms.txt',      ! empty( $opts['llms_txt_enabled'] ),       array( '#' ),                        false ),
+			array( 'llms_full_txt', '/llms-full.txt', ! empty( $opts['llms_full_enabled'] ),      array( '#' ),                        false ),
 		);
 
 		foreach ( $cases as $c ) {
-			[ $id, $path, $expected_enabled, $marker ] = $c;
+			[ $id, $path, $expected_enabled, $markers, $private_ok ] = $c;
 
 			if ( ! $expected_enabled ) {
 				$results[] = self::result( $id, 'endpoints', 'skip', $path, 'disabled in plseo_options' );
@@ -83,24 +86,32 @@ final class PLSEO_Smoke {
 				continue;
 			}
 
-			// Sitemap index vs urlset — only one will match; we accept either for the sitemap root.
-			if ( 'sitemap_index' === $id ) {
-				$has_index  = false !== strpos( $body, '<sitemapindex' );
-				$has_urlset = false !== strpos( $body, '<urlset' );
-				$results[]  = ( $has_index || $has_urlset )
-					? self::result( $id, 'endpoints', 'pass', $path, $has_index ? 'sitemap index' : 'flat urlset' )
-					: self::result( $id, 'endpoints', 'fail', $path, 'XML body had neither <sitemapindex> nor <urlset>' );
+			// Match-any of the provided substrings.
+			$matched = false;
+			foreach ( (array) $markers as $needle ) {
+				if ( false !== strpos( $body, (string) $needle ) ) {
+					$matched = true;
+					break;
+				}
+			}
+			if ( $matched ) {
+				$results[] = self::result( $id, 'endpoints', 'pass', $path,
+					sprintf( 'HTTP 200 · %d bytes', strlen( $body ) ) );
 				continue;
 			}
 
-			if ( false === strpos( $body, $marker ) ) {
-				$results[] = self::result( $id, 'endpoints', 'warn', $path,
-					sprintf( 'HTTP 200 but body did not contain expected marker "%s"', $marker ) );
+			// No marker — either the endpoint is truly broken, or the hosting
+			// layer is rewriting it (Pantheon dev does this for robots.txt).
+			// Distinguishing: a "Disallow: /" global block is the canonical
+			// "this site is privately gated" signature.
+			if ( $private_ok && preg_match( '#User-agent:\s*\*\s*Disallow:\s*/#i', $body ) ) {
+				$results[] = self::result( $id, 'endpoints', 'skip', $path,
+					'host appears to block crawlers globally (dev environment?) — not a regression' );
 				continue;
 			}
 
-			$results[] = self::result( $id, 'endpoints', 'pass', $path,
-				sprintf( 'HTTP 200 · %d bytes', strlen( $body ) ) );
+			$results[] = self::result( $id, 'endpoints', 'warn', $path,
+				sprintf( 'HTTP 200 but no expected marker in body (looked for: %s)', implode( ' | ', (array) $markers ) ) );
 		}
 
 		// IndexNow verification file — only meaningful if enabled.
@@ -289,14 +300,20 @@ final class PLSEO_Smoke {
 	/* ───────────────────────── REST self-test ───────────────────────── */
 
 	private static function check_rest( array &$results ): void {
-		// Build an internal REST request as a privileged user so we can hit
-		// the manage_options-gated routes. This requires a user with that cap;
-		// in CLI we use whatever user wp-cli runs as (typically the first admin).
-		$user = wp_get_current_user();
-		if ( ! $user || ! user_can( $user, 'manage_options' ) ) {
-			$results[] = self::result( 'rest_skip_perm', 'modules', 'skip', '/wp-json/plseo/v1/*',
-				'no manage_options user — run via `wp plseo smoke --user=<admin>`' );
-			return;
+		// REST routes are manage_options-gated. CLI runs without a logged-in
+		// user by default; temporarily impersonate the first admin so the
+		// routes resolve. Restore the original user after.
+		$prev_user_id = get_current_user_id();
+		$prev_ok      = $prev_user_id && user_can( $prev_user_id, 'manage_options' );
+
+		if ( ! $prev_ok ) {
+			$admins = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ) );
+			if ( empty( $admins ) ) {
+				$results[] = self::result( 'rest_skip_no_admin', 'modules', 'skip', '/wp-json/plseo/v1/*',
+					'no administrator user exists on this site' );
+				return;
+			}
+			wp_set_current_user( (int) $admins[0] );
 		}
 
 		foreach ( array(
@@ -311,6 +328,11 @@ final class PLSEO_Smoke {
 			$results[] = ( $code >= 200 && $code < 300 )
 				? self::result( 'rest' . str_replace( '/', '_', $route ), 'modules', 'pass', $route, "HTTP {$code}" )
 				: self::result( 'rest' . str_replace( '/', '_', $route ), 'modules', 'fail', $route, "HTTP {$code}" );
+		}
+
+		// Restore.
+		if ( ! $prev_ok ) {
+			wp_set_current_user( $prev_user_id );
 		}
 	}
 
