@@ -147,7 +147,12 @@ final class PLSEO_Meta_Box {
 				$twitter_card  = (string) PLSEO_Options::get( 'twitter_card_type', 'summary_large_image' );
 				$site_name     = (string) get_bloginfo( 'name' );
 				?>
-				<div class="plseo-preview-grid">
+				<div class="plseo-preview-toolbar" role="tablist" aria-label="<?php esc_attr_e( 'Preview viewport', 'perrylabs-seo' ); ?>">
+					<button type="button" class="plseo-preview-viewport is-active" data-viewport="desktop" role="tab" aria-selected="true"><?php esc_html_e( 'Desktop', 'perrylabs-seo' ); ?></button>
+					<button type="button" class="plseo-preview-viewport"            data-viewport="mobile"  role="tab" aria-selected="false"><?php esc_html_e( 'Mobile', 'perrylabs-seo' ); ?></button>
+				</div>
+
+				<div class="plseo-preview-grid" data-viewport="desktop">
 					<div class="plseo-preview plseo-preview--google" data-preview="google">
 						<h4><?php esc_html_e( 'Google search', 'perrylabs-seo' ); ?></h4>
 						<div class="plseo-snip plseo-snip--google">

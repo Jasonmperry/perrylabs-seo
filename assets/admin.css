@@ -170,6 +170,57 @@
 	border-radius: var(--pl-radius-sm);
 }
 
+/* Setup wizard */
+.plseo-wizard-steps {
+	display: flex;
+	gap: var(--pl-space-2);
+	margin: var(--pl-space-3) 0 var(--pl-space-4);
+	font-size: 13px;
+}
+.plseo-wizard-step {
+	padding: 6px 14px;
+	background: var(--pl-neutral-100);
+	border: 1px solid var(--pl-neutral-300);
+	border-radius: 18px;
+	color: var(--pl-neutral-600);
+}
+.plseo-wizard-step.is-active {
+	background: var(--pl-navy);
+	color: #fff;
+	border-color: var(--pl-navy);
+}
+.plseo-wizard-step.is-done {
+	background: var(--pl-aqua);
+	color: #fff;
+	border-color: var(--pl-aqua);
+}
+
+.plseo-wizard-radio-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: var(--pl-space-3);
+	border: 0;
+	padding: 0;
+}
+.plseo-wizard-card {
+	display: flex;
+	gap: var(--pl-space-3);
+	padding: var(--pl-space-3);
+	background: #fff;
+	border: 1px solid var(--pl-neutral-300);
+	border-radius: var(--pl-radius-md);
+	cursor: pointer;
+}
+.plseo-wizard-card:has(input:checked) {
+	border-color: var(--pl-aqua);
+	box-shadow: 0 0 0 2px var(--pl-aqua);
+}
+.plseo-wizard-card input {
+	margin-top: 4px;
+}
+.plseo-wizard-card strong { display: block; margin-bottom: 4px; }
+.plseo-wizard-card p { margin: 0; font-size: 13px; color: var(--pl-neutral-700); }
+
 /* Schema display rules — row-based UI */
 .plseo-rules-table th,
 .plseo-rules-table td {

@@ -70,12 +70,57 @@
 	margin-bottom: 4px;
 }
 
+/* SERP preview viewport toggle */
+.plseo-preview-toolbar {
+	display: inline-flex;
+	gap: 0;
+	margin-bottom: 8px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	overflow: hidden;
+}
+.plseo-preview-viewport {
+	background: #fff;
+	border: 0;
+	padding: 4px 10px;
+	font-size: 12px;
+	cursor: pointer;
+	border-right: 1px solid #dcdcde;
+}
+.plseo-preview-viewport:last-child { border-right: 0; }
+.plseo-preview-viewport.is-active {
+	background: #2271b1;
+	color: #fff;
+}
+
 /* SERP / X / FB snippet previews */
 .plseo-preview-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 	gap: 16px;
 	margin: 8px 0 12px;
+}
+/* Mobile viewport: constrain widths to approximate Google's mobile result truncation */
+.plseo-preview-grid[data-viewport="mobile"] {
+	grid-template-columns: 1fr;
+	max-width: 380px;
+}
+.plseo-preview-grid[data-viewport="mobile"] .plseo-snip--google .plseo-snip__title {
+	font-size: 16px;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.plseo-preview-grid[data-viewport="mobile"] .plseo-snip--google .plseo-snip__desc {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.plseo-preview-grid[data-viewport="mobile"] .plseo-snip--x .plseo-snip__img,
+.plseo-preview-grid[data-viewport="mobile"] .plseo-snip--fb .plseo-snip__img {
+	height: 120px;
 }
 .plseo-preview h4 {
 	margin: 0 0 6px;

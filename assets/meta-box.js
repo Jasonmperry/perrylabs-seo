@@ -40,6 +40,16 @@
 			$( '#' + $c.data( 'target' ) ).on( 'input keyup change', function () { updateCounter( $c ); } );
 		} );
 
+		// Viewport toggle (desktop / mobile) for the SERP preview.
+		$( document ).on( 'click', '.plseo-preview-viewport', function ( e ) {
+			e.preventDefault();
+			const $btn   = $( this );
+			const target = $btn.data( 'viewport' );
+			$btn.siblings().removeClass( 'is-active' ).attr( 'aria-selected', 'false' );
+			$btn.addClass( 'is-active' ).attr( 'aria-selected', 'true' );
+			$btn.closest( '.plseo-mb__panel' ).find( '.plseo-preview-grid' ).attr( 'data-viewport', target );
+		} );
+
 		// Live preview wiring — keep Google/X/FB cards in sync with the SEO tab inputs.
 		function bindPreview( inputId, field ) {
 			const $input = $( '#' + inputId );

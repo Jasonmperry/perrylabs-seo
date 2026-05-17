@@ -4,7 +4,7 @@ Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, jso
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.1
-Stable tag: 2.3.0
+Stable tag: 2.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,14 @@ The schema graph builder accepts custom contributors via plseo_register_schema_c
 
 == Changelog ==
 
+= 2.4.0 =
+Editor + onboarding polish round:
+
+* First-activation setup wizard: two-step guided flow covering business identity (name, type, logo, social) and AEO posture (allow / block training only / block all AI). Admin-notice nudge until completed; skippable. Accessible at any time via wp-admin/admin.php?page=plseo-setup.
+* Author E-E-A-T user-profile section: Users → Edit gets a "Author E-E-A-T (PerryLabs SEO)" block with three fields — sameAs URLs, credentials, expertise. Wires directly into the Person schema node the @graph already emits for post authors.
+* Block patterns for AEO content: "FAQ section", "Step-by-step how-to", and "Quick answer / TL;DR" patterns registered under a "PerryLabs SEO" category in the inserter. Authors insert → edit in place → FAQPage / HowTo / Speakable schema auto-emits.
+* SERP preview viewport toggle: Desktop / Mobile switch above the snippet preview tab. Mobile mode constrains the Google card to ~380px and clamps the title to 2 lines + description to 3 lines, approximating actual mobile-SERP truncation.
+
 = 2.3.0 =
 Polish pass + scale-out: the AI-fill CLI, Gutenberg sidebar, OG card generator, schema-rules visual UI, and the long-tail bug fixes from the v2.2 review.
 
@@ -162,6 +170,9 @@ Major rewrite. Codename "Signal Boost." Everything new:
 Last v1 release. Preserved on the `v1-archive` git branch.
 
 == Upgrade Notice ==
+
+= 2.4.0 =
+Adds first-activation setup wizard, author E-E-A-T profile fields, AEO-ready block patterns (FAQ / HowTo / Quick answer), SERP preview viewport toggle.
 
 = 2.3.0 =
 Adds Gutenberg sidebar, visual schema-rules UI, wp plseo ai-fill / links rebuild / audit CLI commands, OG image generator. Fixes link-graph LIKE false-positives. Drop-in upgrade.

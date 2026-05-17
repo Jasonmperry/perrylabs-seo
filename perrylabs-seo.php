@@ -3,7 +3,7 @@
  * Plugin Name: PerryLabs SEO + AEO
  * Plugin URI:  https://perrylabs.io
  * Description: Search Engine Optimization and Answer Engine Optimization for WordPress. Unified @graph JSON-LD, per-type sitemaps, redirects with 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. No external dependencies, no nag screens.
- * Version:     2.3.0
+ * Version:     2.4.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author:      PerryLabs
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * ────────────────────────────────────────────────────────────────────── */
 
-define( 'PL_SEO_VERSION', '2.3.0' );
+define( 'PL_SEO_VERSION', '2.4.0' );
 define( 'PL_SEO_CODENAME', 'Signal Boost' );
 define( 'PL_SEO_PLUGIN_FILE', __FILE__ );
 define( 'PL_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -108,6 +108,12 @@ $plseo_classes = array(
 	// Gutenberg sidebar panel.
 	'includes/class-block-editor.php',
 
+	// Editor block patterns for AEO content (FAQ / HowTo / Quick answer).
+	'includes/class-block-patterns.php',
+
+	// Author E-E-A-T fields on the user profile screen.
+	'includes/class-user-profile.php',
+
 	// Open Graph image generator (PHP/GD).
 	'includes/class-og-image.php',
 
@@ -119,6 +125,7 @@ $plseo_classes = array(
 	'includes/admin/class-audit-screen.php',
 	'includes/admin/class-search-log-screen.php',
 	'includes/admin/class-bulk-alt-editor.php',
+	'includes/admin/class-setup-wizard.php',
 	'includes/admin/class-admin.php',
 	'includes/admin/class-tabs.php',
 	'includes/admin/class-meta-box.php',
@@ -170,6 +177,8 @@ add_action( 'plugins_loaded', function (): void {
 	PLSEO_Reading_Time::instance()->boot();
 	PLSEO_Search_Log::instance()->boot();
 	PLSEO_Block_Editor::instance()->boot();
+	PLSEO_Block_Patterns::instance()->boot();
+	PLSEO_User_Profile::instance()->boot();
 	PLSEO_OG_Image::instance()->boot();
 
 	// Admin-only modules.
@@ -178,6 +187,7 @@ add_action( 'plugins_loaded', function (): void {
 		PLSEO_Meta_Box::instance()->boot();
 		PLSEO_Bulk_Editor::instance()->boot();
 		PLSEO_Dashboard_Widget::instance()->boot();
+		PLSEO_Setup_Wizard::instance()->boot();
 	}
 
 	// Admin bar pill — front + admin, only for users who can edit posts.
