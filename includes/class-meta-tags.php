@@ -243,21 +243,60 @@ final class PLSEO_Meta_Tags {
 		if ( ! $post instanceof \WP_Post ) {
 			return;
 		}
+
+		// Start with the per-post manual list (textarea / table UI).
+		$alternates = array();
 		$raw = (string) plseo_get_post_meta( $post->ID, 'hreflang', '' );
-		if ( '' === $raw ) {
+		if ( '' !== $raw ) {
+			foreach ( preg_split( '/\r?\n/', $raw ) as $line ) {
+				$line = trim( (string) $line );
+				if ( '' === $line || ! str_contains( $line, '|' ) ) {
+					continue;
+				}
+				[ $lang, $url ] = array_map( 'trim', explode( '|', $line, 2 ) );
+				if ( '' === $lang || '' === $url ) {
+					continue;
+				}
+				$alternates[] = array( 'lang' => $lang, 'url' => $url );
+			}
+		}
+
+		/**
+		 * Filter hreflang alternates. PLSEO_Multilang hooks here to add
+		 * Polylang / WPML translations.
+		 *
+		 * @param array<int,array{lang:string,url:string}> $alternates
+		 * @param \WP_Post                                  $post
+		 */
+		$alternates = (array) apply_filters( 'plseo_hreflang_alternates', $alternates, $post );
+
+		if ( empty( $alternates ) ) {
 			return;
 		}
-		// One per line: "en-US|https://example.com/en/post"
-		foreach ( preg_split( '/\r?\n/', $raw ) as $line ) {
-			$line = trim( (string) $line );
-			if ( '' === $line || ! str_contains( $line, '|' ) ) {
-				continue;
+
+		// Add x-default when at least 2 languages are present and one looks like
+		// English (a reasonable convention; users can disable via the filter).
+		$has_xdefault = false;
+		foreach ( $alternates as $a ) {
+			if ( 'x-default' === strtolower( (string) $a['lang'] ) ) {
+				$has_xdefault = true;
+				break;
 			}
-			[ $lang, $url ] = array_map( 'trim', explode( '|', $line, 2 ) );
-			if ( $lang === '' || $url === '' ) {
-				continue;
+		}
+		if ( ! $has_xdefault && count( $alternates ) >= 2 ) {
+			foreach ( $alternates as $a ) {
+				if ( str_starts_with( strtolower( (string) $a['lang'] ), 'en' ) ) {
+					$alternates[] = array( 'lang' => 'x-default', 'url' => $a['url'] );
+					break;
+				}
 			}
-			printf( "<link rel=\"alternate\" hreflang=\"%s\" href=\"%s\" />\n", esc_attr( $lang ), esc_url( $url ) );
+		}
+
+		foreach ( $alternates as $a ) {
+			printf( "<link rel=\"alternate\" hreflang=\"%s\" href=\"%s\" />\n",
+				esc_attr( (string) $a['lang'] ),
+				esc_url( (string) $a['url'] )
+			);
 		}
 	}
 

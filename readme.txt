@@ -4,7 +4,7 @@ Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, jso
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.1
-Stable tag: 2.5.0
+Stable tag: 2.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,14 @@ The schema graph builder accepts custom contributors via plseo_register_schema_c
 
 == Changelog ==
 
+= 2.6.0 =
+Headless + multilang + plugin-level health-check.
+
+* Settings health check on the AEO dashboard. Flags business identity gaps (no name, no logo, no social URLs), AI crawler policy issues (unset or all-allow), no analytics provider configured, llms.txt without a custom intro, IndexNow off, no Search Console verification. Each finding has a "Fix" deep-link to the relevant tab.
+* WPGraphQL integration. When WPGraphQL is loaded, every public post-type node gets a `seo` field exposing resolvedTitle, description, canonical, focusKeyword, quickAnswer, cornerstone, noindex, nofollow, schemaType, socialImage, hreflang, and severity. No build step.
+* Polylang / WPML auto-hreflang. Detects either plugin and merges its translation map into the hreflang output. Manual entries from the meta-box hreflang table always win; auto-detected languages fill the rest. Auto-emits an x-default when there are 2+ alternates and one looks English.
+* Per-post "Exclude from sitemap" toggle on the meta box Advanced tab. Honored by the sitemap query without needing a sitemap_exclude_ids edit.
+
 = 2.5.0 =
 Editorial polish + migration path + WooCommerce + admin debugging tools.
 
@@ -181,6 +189,9 @@ Major rewrite. Codename "Signal Boost." Everything new:
 Last v1 release. Preserved on the `v1-archive` git branch.
 
 == Upgrade Notice ==
+
+= 2.6.0 =
+Adds plugin-level health check, WPGraphQL integration, Polylang/WPML auto-hreflang, per-post sitemap-exclude toggle. Drop-in.
 
 = 2.5.0 =
 Post-list SEO column, Yoast / RankMath migration tool, WooCommerce Product schema, schema-test debug screen, robots.txt preview, expanded REST API. Drop-in.

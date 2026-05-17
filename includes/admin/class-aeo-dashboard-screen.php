@@ -17,10 +17,11 @@ final class PLSEO_AEO_Dashboard_Screen {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'perrylabs-seo' ) );
 		}
-		$log    = PLSEO_AI_Visit_Log::instance();
-		$by_bot = $log->summary_by_bot( 30 );
-		$top    = $log->top_urls( 30, 25 );
-		$total  = $log->total_hits( 30 );
+		$log     = PLSEO_AI_Visit_Log::instance();
+		$by_bot  = $log->summary_by_bot( 30 );
+		$top     = $log->top_urls( 30, 25 );
+		$total   = $log->total_hits( 30 );
+		$health  = PLSEO_Health_Check::instance()->run();
 		?>
 		<div class="wrap plseo-wrap">
 			<?php PLSEO_Admin::page_header( __( 'AEO dashboard', 'perrylabs-seo' ) ); ?>
@@ -31,6 +32,31 @@ final class PLSEO_AEO_Dashboard_Screen {
 				<div class="plseo-stat"><span class="plseo-stat-num"><?php echo number_format_i18n( count( $by_bot ) ); ?></span><span class="plseo-stat-label"><?php esc_html_e( 'Distinct bots', 'perrylabs-seo' ); ?></span></div>
 				<div class="plseo-stat"><span class="plseo-stat-num"><?php echo number_format_i18n( count( $top ) ); ?></span><span class="plseo-stat-label"><?php esc_html_e( 'URLs visited', 'perrylabs-seo' ); ?></span></div>
 			</div>
+
+			<?php if ( ! empty( $health ) ) : ?>
+				<h2><?php esc_html_e( 'Setup health check', 'perrylabs-seo' ); ?></h2>
+				<table class="wp-list-table widefat fixed striped">
+					<thead><tr>
+						<th style="width:80px"></th>
+						<th><?php esc_html_e( 'Finding', 'perrylabs-seo' ); ?></th>
+						<th style="width:90px"></th>
+					</tr></thead>
+					<tbody>
+					<?php foreach ( $health as $f ) :
+						$badge_class = 'warn' === $f['severity'] ? 'plseo-pill--warn' : 'plseo-pill--pass';
+					?>
+						<tr>
+							<td><span class="plseo-pill <?php echo esc_attr( $badge_class ); ?>"><?php echo esc_html( strtoupper( $f['severity'] ) ); ?></span></td>
+							<td>
+								<strong><?php echo esc_html( $f['label'] ); ?></strong><br>
+								<span class="description"><?php echo esc_html( $f['detail'] ); ?></span>
+							</td>
+							<td><a class="button button-small" href="<?php echo esc_url( $f['fix'] ); ?>"><?php esc_html_e( 'Fix', 'perrylabs-seo' ); ?></a></td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
 
 			<h2><?php esc_html_e( 'By bot', 'perrylabs-seo' ); ?></h2>
 			<table class="wp-list-table widefat fixed striped">

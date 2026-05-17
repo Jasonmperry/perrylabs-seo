@@ -41,6 +41,7 @@ final class PLSEO_Meta_Box {
 		'quick_answer',
 		'focus_keyword',
 		'cornerstone',
+		'exclude_sitemap',
 	);
 
 	private const SCHEMA_CHOICES = array(
@@ -248,7 +249,8 @@ final class PLSEO_Meta_Box {
 				<p>
 					<label><input type="checkbox" name="_plseo_noindex" value="1" <?php checked( $vals['noindex'], '1' ); ?>> <?php esc_html_e( 'Noindex this post', 'perrylabs-seo' ); ?></label><br>
 					<label><input type="checkbox" name="_plseo_nofollow" value="1" <?php checked( $vals['nofollow'], '1' ); ?>> <?php esc_html_e( 'Nofollow links from this post', 'perrylabs-seo' ); ?></label><br>
-					<label title="<?php esc_attr_e( 'Promotes this post in /llms.txt featured and gives it sitemap priority 1.0.', 'perrylabs-seo' ); ?>"><input type="checkbox" name="_plseo_cornerstone" value="1" <?php checked( $vals['cornerstone'], '1' ); ?>> <?php esc_html_e( 'Mark as cornerstone content', 'perrylabs-seo' ); ?></label>
+					<label title="<?php esc_attr_e( 'Promotes this post in /llms.txt featured and gives it sitemap priority 1.0.', 'perrylabs-seo' ); ?>"><input type="checkbox" name="_plseo_cornerstone" value="1" <?php checked( $vals['cornerstone'], '1' ); ?>> <?php esc_html_e( 'Mark as cornerstone content', 'perrylabs-seo' ); ?></label><br>
+					<label title="<?php esc_attr_e( 'Removes this post from /sitemap.xml regardless of its post type configuration.', 'perrylabs-seo' ); ?>"><input type="checkbox" name="_plseo_exclude_sitemap" value="1" <?php checked( $vals['exclude_sitemap'], '1' ); ?>> <?php esc_html_e( 'Exclude from sitemap', 'perrylabs-seo' ); ?></label>
 				</p>
 				<div class="plseo-hreflang">
 					<strong><?php esc_html_e( 'Hreflang alternates', 'perrylabs-seo' ); ?></strong>
@@ -343,7 +345,7 @@ final class PLSEO_Meta_Box {
 		}
 
 		// Booleans (checkbox keys present only when checked).
-		foreach ( array( 'noindex', 'nofollow', 'cornerstone' ) as $field ) {
+		foreach ( array( 'noindex', 'nofollow', 'cornerstone', 'exclude_sitemap' ) as $field ) {
 			$key = '_plseo_' . $field;
 			if ( ! empty( $_POST[ $key ] ) ) {
 				update_post_meta( $post_id, $key, '1' );

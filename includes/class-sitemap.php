@@ -184,15 +184,16 @@ final class PLSEO_Sitemap {
 			'no_found_rows'  => false,
 			'post__not_in'   => array_map( 'intval', $exclude ),
 			'meta_query'     => array(
-				'relation' => 'OR',
+				'relation' => 'AND',
 				array(
-					'key'     => '_plseo_noindex',
-					'compare' => 'NOT EXISTS',
+					'relation' => 'OR',
+					array( 'key' => '_plseo_noindex', 'compare' => 'NOT EXISTS' ),
+					array( 'key' => '_plseo_noindex', 'value' => '1', 'compare' => '!=' ),
 				),
 				array(
-					'key'     => '_plseo_noindex',
-					'value'   => '1',
-					'compare' => '!=',
+					'relation' => 'OR',
+					array( 'key' => '_plseo_exclude_sitemap', 'compare' => 'NOT EXISTS' ),
+					array( 'key' => '_plseo_exclude_sitemap', 'value' => '1', 'compare' => '!=' ),
 				),
 			),
 		);

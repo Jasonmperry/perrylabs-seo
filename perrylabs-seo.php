@@ -3,7 +3,7 @@
  * Plugin Name: PerryLabs SEO + AEO
  * Plugin URI:  https://perrylabs.io
  * Description: Search Engine Optimization and Answer Engine Optimization for WordPress. Unified @graph JSON-LD, per-type sitemaps, redirects with 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. No external dependencies, no nag screens.
- * Version:     2.5.0
+ * Version:     2.6.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author:      PerryLabs
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Plugin constants
  * ────────────────────────────────────────────────────────────────────── */
 
-define( 'PL_SEO_VERSION', '2.5.0' );
+define( 'PL_SEO_VERSION', '2.6.0' );
 define( 'PL_SEO_CODENAME', 'Signal Boost' );
 define( 'PL_SEO_PLUGIN_FILE', __FILE__ );
 define( 'PL_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -123,6 +123,15 @@ $plseo_classes = array(
 	// WooCommerce Product / Offer / Review schema (no-op when WC isn't loaded).
 	'includes/class-woocommerce.php',
 
+	// Plugin-level health check (per-site config audit).
+	'includes/class-health-check.php',
+
+	// WPGraphQL integration (no-op when WPGraphQL isn't loaded).
+	'includes/class-wpgraphql.php',
+
+	// Polylang / WPML auto-hreflang (no-op when neither is loaded).
+	'includes/class-multilang.php',
+
 	// Admin layer.
 	'includes/admin/class-admin-actions.php',
 	'includes/admin/class-redirects-screen.php',
@@ -191,6 +200,8 @@ add_action( 'plugins_loaded', function (): void {
 	PLSEO_User_Profile::instance()->boot();
 	PLSEO_OG_Image::instance()->boot();
 	PLSEO_WooCommerce::instance()->boot();
+	PLSEO_WPGraphQL::instance()->boot();
+	PLSEO_Multilang::instance()->boot();
 
 	// Admin-only modules.
 	if ( is_admin() ) {
