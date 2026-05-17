@@ -35,7 +35,13 @@ final class PLSEO_Sitemap {
 	public function boot(): void {
 		add_action( 'init', array( __CLASS__, 'register_rewrites' ) );
 		add_filter( 'query_vars', array( $this, 'filter_query_vars' ) );
-		add_action( 'template_redirect', array( $this, 'maybe_render' ) );
+		add_action( 'template_redirect', array( $this, 'maybe_render' ), 1 );
+
+		// Block WP's redirect_canonical() from rewriting our endpoint URLs to
+		// trailing-slash form (it likes to do that for any URL it doesn't
+		// recognize as a feed). Without this, /sitemap.xml → /sitemap.xml/
+		// on some host configurations.
+		add_filter( 'redirect_canonical', array( $this, 'short_circuit_canonical' ), 10, 2 );
 
 		// Suppress core sitemaps only when our sitemap is enabled. The default
 		// is `true` (our sitemap on, core's off) but a user can turn off
@@ -55,13 +61,17 @@ final class PLSEO_Sitemap {
 	}
 
 	public static function register_rewrites(): void {
-		add_rewrite_rule( '^sitemap\.xml$',            'index.php?plseo_sitemap=index',  'top' );
-		add_rewrite_rule( '^sitemap-news\.xml$',       'index.php?plseo_sitemap=news',   'top' );
-		add_rewrite_rule( '^sitemap-videos\.xml$',     'index.php?plseo_sitemap=videos', 'top' );
-		add_rewrite_rule( '^sitemap-tax-([^/]+)\.xml$', 'index.php?plseo_sitemap=tax&plseo_sitemap_obj=$matches[1]', 'top' );
-		add_rewrite_rule( '^sitemap-author\.xml$',     'index.php?plseo_sitemap=author', 'top' );
-		add_rewrite_rule( '^sitemap-([a-z0-9_\-]+)-(\d+)\.xml$', 'index.php?plseo_sitemap=type&plseo_sitemap_obj=$matches[1]&plseo_sitemap_page=$matches[2]', 'top' );
-		add_rewrite_rule( '^sitemap-([a-z0-9_\-]+)\.xml$', 'index.php?plseo_sitemap=type&plseo_sitemap_obj=$matches[1]&plseo_sitemap_page=1', 'top' );
+		// Trailing `/?$` tolerates the trailing-slash canonical-redirect that
+		// many themes / multilingual plugins apply to all non-asset URLs.
+		// Without this, those themes 301 `/sitemap.xml` → `/sitemap.xml/`
+		// which no longer matches our rule and falls through to 404.
+		add_rewrite_rule( '^sitemap\.xml/?$',            'index.php?plseo_sitemap=index',  'top' );
+		add_rewrite_rule( '^sitemap-news\.xml/?$',       'index.php?plseo_sitemap=news',   'top' );
+		add_rewrite_rule( '^sitemap-videos\.xml/?$',     'index.php?plseo_sitemap=videos', 'top' );
+		add_rewrite_rule( '^sitemap-tax-([^/]+)\.xml/?$', 'index.php?plseo_sitemap=tax&plseo_sitemap_obj=$matches[1]', 'top' );
+		add_rewrite_rule( '^sitemap-author\.xml/?$',     'index.php?plseo_sitemap=author', 'top' );
+		add_rewrite_rule( '^sitemap-([a-z0-9_\-]+)-(\d+)\.xml/?$', 'index.php?plseo_sitemap=type&plseo_sitemap_obj=$matches[1]&plseo_sitemap_page=$matches[2]', 'top' );
+		add_rewrite_rule( '^sitemap-([a-z0-9_\-]+)\.xml/?$', 'index.php?plseo_sitemap=type&plseo_sitemap_obj=$matches[1]&plseo_sitemap_page=1', 'top' );
 	}
 
 	public function filter_query_vars( array $vars ): array {
@@ -69,6 +79,25 @@ final class PLSEO_Sitemap {
 		$vars[] = 'plseo_sitemap_obj';
 		$vars[] = 'plseo_sitemap_page';
 		return $vars;
+	}
+
+	/**
+	 * Short-circuit `redirect_canonical` on any URL that matches one of our
+	 * sitemap rewrite patterns. Prevents themes/plugins from 301-ing
+	 * `/sitemap.xml` to `/sitemap.xml/` (or similar) before we get a chance
+	 * to render it.
+	 *
+	 * @param string $redirect_url  Where WP would redirect to.
+	 * @param string $requested_url What the visitor actually asked for.
+	 */
+	public function short_circuit_canonical( $redirect_url, $requested_url ) {
+		if ( ! is_string( $requested_url ) ) {
+			return $redirect_url;
+		}
+		if ( preg_match( '#/sitemap(?:-[a-z0-9_\-]+)?(?:-\d+)?\.xml/?$#i', (string) $requested_url ) ) {
+			return false; // tell WP to skip the redirect
+		}
+		return $redirect_url;
 	}
 
 	public function maybe_render(): void {

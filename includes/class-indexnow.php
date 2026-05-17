@@ -37,12 +37,20 @@ final class PLSEO_IndexNow {
 			$vars[] = 'plseo_indexnow_key';
 			return $vars;
 		} );
-		add_action( 'template_redirect', array( $this, 'serve_key_file' ) );
+		add_action( 'template_redirect', array( $this, 'serve_key_file' ), 1 );
 		add_action( 'transition_post_status', array( $this, 'on_transition' ), 10, 3 );
+
+		// Don't let canonical-redirect rewrite /{key}.txt.
+		add_filter( 'redirect_canonical', static function ( $redirect_url, $requested_url ) {
+			if ( is_string( $requested_url ) && preg_match( '#/[a-f0-9]{32}\.txt/?$#i', (string) $requested_url ) ) {
+				return false;
+			}
+			return $redirect_url;
+		}, 10, 2 );
 	}
 
 	public static function register_rewrites(): void {
-		add_rewrite_rule( '^([a-f0-9]{32})\.txt$', 'index.php?plseo_indexnow_key=$matches[1]', 'top' );
+		add_rewrite_rule( '^([a-f0-9]{32})\.txt/?$', 'index.php?plseo_indexnow_key=$matches[1]', 'top' );
 	}
 
 	public function key(): string {

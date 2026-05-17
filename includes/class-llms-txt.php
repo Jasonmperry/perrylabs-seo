@@ -40,14 +40,23 @@ final class PLSEO_LLMs_Txt {
 			$vars[] = 'plseo_llms';
 			return $vars;
 		} );
-		add_action( 'template_redirect', array( $this, 'render' ) );
+		add_action( 'template_redirect', array( $this, 'render' ), 1 );
 		add_action( 'save_post', array( $this, 'bust_cache' ) );
 		add_action( 'deleted_post', array( $this, 'bust_cache' ) );
+
+		// Same canonical short-circuit as the sitemap module.
+		add_filter( 'redirect_canonical', static function ( $redirect_url, $requested_url ) {
+			if ( is_string( $requested_url ) && preg_match( '#/llms(?:-full)?\.txt/?$#i', (string) $requested_url ) ) {
+				return false;
+			}
+			return $redirect_url;
+		}, 10, 2 );
 	}
 
 	public static function register_rewrites(): void {
-		add_rewrite_rule( '^llms\.txt$', 'index.php?plseo_llms=summary', 'top' );
-		add_rewrite_rule( '^llms-full\.txt$', 'index.php?plseo_llms=full', 'top' );
+		// Trailing `/?$` tolerates themes that canonical-redirect to slash form.
+		add_rewrite_rule( '^llms\.txt/?$',      'index.php?plseo_llms=summary', 'top' );
+		add_rewrite_rule( '^llms-full\.txt/?$', 'index.php?plseo_llms=full',    'top' );
 	}
 
 	public function render(): void {
