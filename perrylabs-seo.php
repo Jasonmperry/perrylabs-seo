@@ -3,9 +3,9 @@
  * Plugin Name: PerryLabs SEO + AEO
  * Plugin URI:  https://perrylabs.io
  * Description: Search Engine Optimization and Answer Engine Optimization for WordPress. Unified @graph JSON-LD, per-type sitemaps, redirects with 404→redirect workflow, AI crawler matrix, llms.txt builder, FAQ/HowTo auto-detection, speakable schema, REST + WP-CLI surface. No external dependencies, no nag screens.
- * Version:     2.6.0
+ * Version:     2.7.0
  * Requires at least: 6.0
- * Requires PHP: 8.1
+ * Requires PHP: 8.0
  * Author:      PerryLabs
  * Author URI:  https://perrylabs.io
  * Text Domain: perrylabs-seo
@@ -23,10 +23,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /* ──────────────────────────────────────────────────────────────────────
+ * Pre-flight — bail before loading any classes when the environment is
+ * too old to parse them. Keeps the plugin from triggering a fatal error
+ * on PHP < 8.0 (`match` expression is the lowest 8.0-only thing we use).
+ * ────────────────────────────────────────────────────────────────────── */
+
+if ( version_compare( PHP_VERSION, '8.0', '<' ) ) {
+	add_action( 'admin_notices', static function (): void {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-error"><p><strong>%s</strong> %s</p></div>',
+			esc_html__( 'PerryLabs SEO + AEO disabled.', 'perrylabs-seo' ),
+			sprintf(
+				/* translators: %s actual PHP version */
+				esc_html__( 'This plugin requires PHP 8.0 or higher. The server is running PHP %s. Upgrade PHP and reload to enable the plugin.', 'perrylabs-seo' ),
+				esc_html( PHP_VERSION )
+			)
+		);
+	} );
+	return;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
  * Plugin constants
  * ────────────────────────────────────────────────────────────────────── */
 
-define( 'PL_SEO_VERSION', '2.6.0' );
+define( 'PL_SEO_VERSION', '2.7.0' );
 define( 'PL_SEO_CODENAME', 'Signal Boost' );
 define( 'PL_SEO_PLUGIN_FILE', __FILE__ );
 define( 'PL_SEO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -132,6 +156,9 @@ $plseo_classes = array(
 	// Polylang / WPML auto-hreflang (no-op when neither is loaded).
 	'includes/class-multilang.php',
 
+	// Compatibility checks + admin notices (conflicts, PHP version).
+	'includes/class-compat.php',
+
 	// Admin layer.
 	'includes/admin/class-admin-actions.php',
 	'includes/admin/class-redirects-screen.php',
@@ -203,6 +230,11 @@ add_action( 'plugins_loaded', function (): void {
 	PLSEO_WPGraphQL::instance()->boot();
 	PLSEO_Multilang::instance()->boot();
 
+	// Compatibility / conflict notices — admin-only inside the class.
+	if ( is_admin() ) {
+		PLSEO_Compat::instance()->boot();
+	}
+
 	// Admin-only modules.
 	if ( is_admin() ) {
 		PLSEO_Admin::instance()->boot();
@@ -227,22 +259,61 @@ add_action( 'plugins_loaded', function (): void {
  * Activation / deactivation
  * ────────────────────────────────────────────────────────────────────── */
 
-register_activation_hook( __FILE__, function (): void {
-	// Tables first (some migrations write to them).
+/**
+ * Activation work shared between single-site and per-blog network activation.
+ */
+function plseo_activate_site(): void {
 	PLSEO_Redirects::install_table();
 	PLSEO_404_Log::install_table();
 	PLSEO_AI_Visit_Log::install_table();
 	PLSEO_Search_Log::install_table();
 
-	// Migrate v1 → v2 if needed; seed defaults otherwise.
 	PLSEO_Migrations::run();
 
-	// Register rewrite endpoints before flushing.
 	PLSEO_Sitemap::register_rewrites();
 	PLSEO_IndexNow::register_rewrites();
 	PLSEO_LLMs_Txt::register_rewrites();
 	flush_rewrite_rules();
+}
+
+register_activation_hook( __FILE__, function ( bool $network_wide = false ): void {
+	if ( is_multisite() && $network_wide ) {
+		// Iterate every site in the network and install on each.
+		$site_ids = get_sites( array( 'fields' => 'ids', 'number' => 0 ) );
+		foreach ( $site_ids as $site_id ) {
+			switch_to_blog( (int) $site_id );
+			plseo_activate_site();
+			restore_current_blog();
+		}
+		return;
+	}
+	plseo_activate_site();
 } );
+
+/**
+ * New site joins a network — install our tables + options there too.
+ * Supports both the modern `wp_initialize_site` hook and the legacy
+ * `wpmu_new_blog` action.
+ */
+if ( is_multisite() ) {
+	add_action( 'wp_initialize_site', static function ( $new_site ): void {
+		// `is_plugin_active_for_network` lives in wp-admin/includes/plugin.php.
+		// Pull it in on demand so the front end doesn't have to load it.
+		if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		if ( ! is_plugin_active_for_network( PL_SEO_PLUGIN_BASENAME ) ) {
+			return;
+		}
+		$site_id = is_object( $new_site ) ? (int) $new_site->id : (int) $new_site;
+		if ( $site_id < 1 ) {
+			return;
+		}
+		switch_to_blog( $site_id );
+		plseo_activate_site();
+		restore_current_blog();
+	}, 10, 1 );
+}
 
 register_deactivation_hook( __FILE__, function (): void {
 	flush_rewrite_rules();

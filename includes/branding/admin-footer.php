@@ -12,7 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-$pl_logo  = 'https://perrylabs-assets.s3.us-east-1.amazonaws.com/PerryLabs-LogoMark.png';
+$pl_logo  = ( class_exists( 'PerryLabs_Branding' ) && method_exists( 'PerryLabs_Branding', 'logo_url' ) )
+	? PerryLabs_Branding::logo_url()
+	: 'https://perrylabs-assets.s3.us-east-1.amazonaws.com/PerryLabs-LogoMark.png';
 $pl_url   = 'https://perrylabs.io';
 $jmp_url  = 'https://jasonmperry.com';
 ?>

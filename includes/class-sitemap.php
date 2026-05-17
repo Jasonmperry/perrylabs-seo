@@ -37,8 +37,17 @@ final class PLSEO_Sitemap {
 		add_filter( 'query_vars', array( $this, 'filter_query_vars' ) );
 		add_action( 'template_redirect', array( $this, 'maybe_render' ) );
 
-		// Suppress WP core sitemaps to avoid conflict.
-		add_filter( 'wp_sitemaps_enabled', '__return_false' );
+		// Suppress core sitemaps only when our sitemap is enabled. The default
+		// is `true` (our sitemap on, core's off) but a user can turn off
+		// `sitemap_enabled` to keep core's wp-sitemap.xml — useful for
+		// gradual rollouts or when our sitemap is misbehaving on a given
+		// install. They can also short-circuit this via the filter below.
+		if ( (bool) PLSEO_Options::get( 'sitemap_enabled', true ) ) {
+			$suppress = (bool) apply_filters( 'plseo_disable_core_sitemap', true );
+			if ( $suppress ) {
+				add_filter( 'wp_sitemaps_enabled', '__return_false' );
+			}
+		}
 
 		// Bust the index when content changes.
 		add_action( 'save_post', array( $this, 'bust_cache' ) );

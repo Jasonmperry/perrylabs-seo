@@ -3,8 +3,8 @@ Contributors: perrylabs
 Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, json-ld, e-e-a-t
 Requires at least: 6.0
 Tested up to: 6.5
-Requires PHP: 8.1
-Stable tag: 2.6.0
+Requires PHP: 8.0
+Stable tag: 2.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -94,6 +94,17 @@ Yes — having two sitemaps that disagree is worse than either. We filter `wp_si
 The schema graph builder accepts custom contributors via plseo_register_schema_contributor() — Product, FAQ from ACF, etc. There's no auto-mapping built in for WooCommerce yet (planned for 2.1).
 
 == Changelog ==
+
+= 2.7.0 =
+"Installable anywhere" hardening pass — no functional regressions, fewer surprises on a fresh install.
+
+* Lower PHP requirement to 8.0 (was 8.1). The plugin actually only uses 8.0 features (`match`, `str_contains`, `??=`); the 8.1 minimum was over-tight.
+* Pre-flight version check. If the plugin is somehow loaded on PHP < 8.0 it shows an admin notice and bails before requiring any class files — no fatal error.
+* Conflict detection (PLSEO_Compat): admin notice when Yoast SEO, RankMath, or All in One SEO is active alongside us, with a one-click deep link to the importer. Per-user dismissable.
+* Core sitemap suppression is now opt-out, not unconditional. `sitemap_enabled = false` keeps WordPress's wp-sitemap.xml. The `plseo_disable_core_sitemap` filter offers another override.
+* Local logo bundled. The shared PerryLabs_Branding helper now prefers a sibling `assets/perrylabs-logomark.png` over the S3 fallback URL. Admin chrome no longer breaks when S3 is unreachable.
+* Multisite support. `register_activation_hook` now installs tables on every site in a network-wide activation. New sites joining a network where the plugin is network-active get tables installed via `wp_initialize_site`.
+* `wp plseo doctor` CLI command — runs a complete pre-flight: PHP / WP / extension versions, custom tables present, permalink structure, WP-Cron, conflicting SEO plugins, plus the existing plugin-level health check. Use `--strict` to fail on warnings.
 
 = 2.6.0 =
 Headless + multilang + plugin-level health-check.
@@ -189,6 +200,9 @@ Major rewrite. Codename "Signal Boost." Everything new:
 Last v1 release. Preserved on the `v1-archive` git branch.
 
 == Upgrade Notice ==
+
+= 2.7.0 =
+Portability hardening — lower PHP requirement to 8.0, conflict detection for Yoast/RankMath/AIOSEO, local logo (no S3 dependency), multisite activation, `wp plseo doctor`, opt-out for core-sitemap suppression. No functional regressions.
 
 = 2.6.0 =
 Adds plugin-level health check, WPGraphQL integration, Polylang/WPML auto-hreflang, per-post sitemap-exclude toggle. Drop-in.

@@ -16,7 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $pl_title   = $pl_title   ?? '';
 $pl_version = $pl_version ?? '';
-$pl_logo    = 'https://perrylabs-assets.s3.us-east-1.amazonaws.com/PerryLabs-LogoMark.png';
+$pl_logo    = ( class_exists( 'PerryLabs_Branding' ) && method_exists( 'PerryLabs_Branding', 'logo_url' ) )
+	? PerryLabs_Branding::logo_url()
+	: 'https://perrylabs-assets.s3.us-east-1.amazonaws.com/PerryLabs-LogoMark.png';
 $pl_url     = 'https://perrylabs.io';
 ?>
 <div class="pl-admin-header">

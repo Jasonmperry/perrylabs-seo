@@ -22,7 +22,25 @@ class PerryLabs_Branding {
     const VERSION       = '1.0.0';
     const PERRYLABS_URL = 'https://perrylabs.io';
     const PERSONAL_URL  = 'https://jasonmperry.com';
+
+    /**
+     * S3-hosted fallback — used only when no local copy ships with the plugin.
+     * Drop a PNG/SVG at `includes/branding/assets/perrylabs-logomark.png` next
+     * to this class and the loader below picks it up automatically, removing
+     * the runtime dependency on perrylabs-assets.s3.us-east-1.amazonaws.com.
+     */
     const LOGOMARK_URL  = 'https://perrylabs-assets.s3.us-east-1.amazonaws.com/PerryLabs-LogoMark.png';
+
+    /**
+     * Resolve the logo URL — local file (preferred) or S3 fallback.
+     */
+    public static function logo_url(): string {
+        $local_path = __DIR__ . '/assets/perrylabs-logomark.png';
+        if ( file_exists( $local_path ) && function_exists( 'plugins_url' ) ) {
+            return plugins_url( 'assets/perrylabs-logomark.png', __FILE__ );
+        }
+        return self::LOGOMARK_URL;
+    }
 
     /**
      * Enqueue the tokens.css that ships with the plugin.
@@ -44,7 +62,7 @@ class PerryLabs_Branding {
         ?>
         <div class="pl-admin-header">
             <a href="<?php echo esc_url( self::PERRYLABS_URL ); ?>" target="_blank" rel="noopener noreferrer">
-                <img src="<?php echo esc_url( self::LOGOMARK_URL ); ?>" alt="PerryLabs" />
+                <img src="<?php echo esc_url( self::logo_url() ); ?>" alt="PerryLabs" />
             </a>
             <h1><?php echo esc_html( $title ); ?></h1>
             <?php if ( $plugin_version ) : ?>
@@ -61,7 +79,7 @@ class PerryLabs_Branding {
         ?>
         <div class="pl-admin-footer">
             <a class="pl-built-by" href="<?php echo esc_url( self::PERRYLABS_URL ); ?>" target="_blank" rel="noopener noreferrer">
-                <img src="<?php echo esc_url( self::LOGOMARK_URL ); ?>" alt="PerryLabs" />
+                <img src="<?php echo esc_url( self::logo_url() ); ?>" alt="PerryLabs" />
                 <span><?php esc_html_e( 'Built by PerryLabs', 'perrylabs' ); ?></span>
             </a>
             <span class="pl-sep">|</span>

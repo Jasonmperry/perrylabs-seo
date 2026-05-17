@@ -82,7 +82,26 @@ On every post save, outbound internal links are extracted to `_plseo_internal_li
 ## Requirements
 
 - WordPress 6.0+
-- PHP 8.1+ (uses enums-friendly syntax, readonly considerations, `match`, nullsafe, etc.)
+- PHP 8.0+
+- Pretty permalinks (`Settings → Permalinks` not set to "Plain")
+- WP-Cron running (or a system cron substitute) for daily log retention
+
+Optional but recommended:
+
+- Multisite — supported. Network activation installs custom tables across every site; sites added later get them via `wp_initialize_site`.
+- `ext-gd` — required for the OG image generator (otherwise that feature no-ops).
+- WPGraphQL — when present, the plugin auto-registers a `seo` field on every public post type.
+- Polylang or WPML — when present, hreflang alternates are auto-merged from their translation maps.
+- WooCommerce — when present, full Product / Offer / AggregateRating / Review schema is emitted automatically.
+
+## Pre-flight check
+
+```bash
+wp plseo doctor          # full health report
+wp plseo doctor --strict # exit non-zero if any warning
+```
+
+Verifies PHP, WordPress, extension versions; custom tables present; permalink structure; WP-Cron state; conflicting SEO plugins; the plugin's own configuration health check. Run this before promoting from dev to live. (uses enums-friendly syntax, readonly considerations, `match`, nullsafe, etc.)
 
 ## Installation
 

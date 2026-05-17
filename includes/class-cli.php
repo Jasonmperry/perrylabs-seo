@@ -40,6 +40,7 @@ final class PLSEO_CLI {
 		\WP_CLI::add_command( 'plseo links',     array( __CLASS__, 'cmd_links' ) );
 		\WP_CLI::add_command( 'plseo audit',     array( __CLASS__, 'cmd_audit' ) );
 		\WP_CLI::add_command( 'plseo ai-fill',   array( __CLASS__, 'cmd_ai_fill' ) );
+		\WP_CLI::add_command( 'plseo doctor',    array( __CLASS__, 'cmd_doctor' ) );
 	}
 
 	public static function cmd_redirects( array $args, array $assoc ): void {
@@ -458,5 +459,137 @@ final class PLSEO_CLI {
 		if ( $progress ) { $progress->finish(); }
 
 		\WP_CLI::success( sprintf( 'Filled %d post(s); %d failed.', $ok, $failed ) );
+	}
+
+	/**
+	 * Pre-flight health check — verifies the install is shipped correctly.
+	 *
+	 * Walks PHP version, required extensions, WP version, multisite state,
+	 * conflicting plugins, plugin-level settings (PLSEO_Health_Check), and
+	 * custom-table presence. Useful before promoting from dev to live.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--strict]
+	 * : Exit with non-zero status code if any check produces a warning
+	 *   (default: only errors fail the run).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *   wp plseo doctor
+	 *   wp plseo doctor --strict
+	 */
+	public static function cmd_doctor( array $args, array $assoc ): void {
+		$strict = isset( $assoc['strict'] );
+		$rows   = self::doctor_checks();
+
+		$errors   = 0;
+		$warnings = 0;
+		foreach ( $rows as $r ) {
+			[ $status, $label, $detail ] = $r;
+			$icon = match ( $status ) {
+				'ok'    => "\033[32m✓\033[0m",
+				'warn'  => "\033[33m⚠\033[0m",
+				'error' => "\033[31m✗\033[0m",
+				default => '·',
+			};
+			\WP_CLI::log( sprintf( '  %s %-44s %s', $icon, $label, $detail ) );
+			if ( 'error' === $status ) {
+				$errors++;
+			}
+			if ( 'warn' === $status ) {
+				$warnings++;
+			}
+		}
+
+		\WP_CLI::log( '' );
+		\WP_CLI::log( sprintf( 'Summary: %d ok, %d warn, %d error', count( $rows ) - $errors - $warnings, $warnings, $errors ) );
+
+		if ( $errors > 0 ) {
+			\WP_CLI::error( 'Doctor reported errors. Fix before promoting to live.' );
+		}
+		if ( $strict && $warnings > 0 ) {
+			\WP_CLI::error( '--strict: warnings present.' );
+		}
+		\WP_CLI::success( 'Doctor done.' );
+	}
+
+	/**
+	 * Build the list of checks for the doctor command.
+	 *
+	 * @return array<int,array{0:string,1:string,2:string}>
+	 */
+	private static function doctor_checks(): array {
+		global $wp_version, $wpdb;
+		$out = array();
+
+		// PHP version.
+		$out[] = version_compare( PHP_VERSION, '8.0', '>=' )
+			? array( 'ok',    'PHP version',           PHP_VERSION )
+			: array( 'error', 'PHP version',           PHP_VERSION . ' (requires 8.0+)' );
+
+		// WordPress version.
+		$out[] = version_compare( (string) $wp_version, '6.0', '>=' )
+			? array( 'ok',   'WordPress version', (string) $wp_version )
+			: array( 'warn', 'WordPress version', $wp_version . ' (recommended 6.0+)' );
+
+		// Required PHP extensions.
+		foreach ( array( 'mbstring', 'json', 'pcre', 'curl' ) as $ext ) {
+			$out[] = extension_loaded( $ext )
+				? array( 'ok',    "ext-{$ext}", 'loaded' )
+				: array( 'error', "ext-{$ext}", 'NOT loaded' );
+		}
+
+		// GD (OG image generator). Soft requirement.
+		$out[] = function_exists( 'imagecreatetruecolor' )
+			? array( 'ok',   'ext-gd',    'loaded (OG image generator available)' )
+			: array( 'warn', 'ext-gd',    'not loaded — OG image generator will be a no-op' );
+
+		// Multisite awareness.
+		$out[] = array( 'ok', 'Multisite', is_multisite() ? 'yes' : 'no' );
+
+		// Custom tables present.
+		foreach ( array( 'plseo_redirects', 'plseo_404_log', 'plseo_ai_visits', 'plseo_search_log' ) as $t ) {
+			$full   = $wpdb->prefix . $t;
+			$exists = (string) $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full ) );
+			$out[]  = $exists === $full
+				? array( 'ok',    "table {$t}", 'exists' )
+				: array( 'error', "table {$t}", 'missing — re-activate the plugin' );
+		}
+
+		// Conflicting SEO plugins.
+		foreach ( array(
+			'Yoast SEO'        => array( 'wordpress-seo/wp-seo.php',                 'WPSEO_VERSION' ),
+			'RankMath SEO'     => array( 'seo-by-rank-math/rank-math.php',           'RANK_MATH_VERSION' ),
+			'All in One SEO'   => array( 'all-in-one-seo-pack/all_in_one_seo_pack.php', 'AIOSEO_VERSION' ),
+		) as $label => $pair ) {
+			$active = ( function_exists( 'is_plugin_active' ) && is_plugin_active( $pair[0] ) ) || defined( $pair[1] );
+			$out[]  = $active
+				? array( 'warn', "Conflict: {$label}", 'active alongside PerryLabs SEO — duplicate output likely' )
+				: array( 'ok',   "Conflict: {$label}", 'not active' );
+		}
+
+		// Plugin-level health-check findings.
+		$health = class_exists( 'PLSEO_Health_Check' ) ? PLSEO_Health_Check::instance()->run() : array();
+		foreach ( $health as $h ) {
+			$out[] = array(
+				'warn' === $h['severity'] ? 'warn' : 'ok',
+				'Health: ' . $h['label'],
+				$h['detail']
+			);
+		}
+
+		// Pretty URLs (needed for the rewrite-based endpoints).
+		$out[] = '' !== (string) get_option( 'permalink_structure', '' )
+			? array( 'ok',    'Permalinks', 'pretty (rewrite-based endpoints work)' )
+			: array( 'error', 'Permalinks', 'plain permalinks active — /sitemap.xml, /llms.txt, and IndexNow key all return 404' );
+
+		// WP-Cron — required for retention pruning + scheduled audits.
+		$cron_disabled = defined( 'DISABLE_WP_CRON' ) && constant( 'DISABLE_WP_CRON' );
+		$out[]         = ! $cron_disabled
+			? array( 'ok',   'WP-Cron', 'enabled (daily prune of 404 / AI visits / search log runs automatically)' )
+			: array( 'warn', 'WP-Cron', 'disabled — schedule the daily plseo_daily_maintenance hook from system cron or tables will grow unbounded' );
+
+		return $out;
 	}
 }
