@@ -33,11 +33,11 @@ final class PLSEO_Admin_Actions {
 		check_admin_referer( 'plseo_redirect_create' );
 		self::require_cap();
 		$id = PLSEO_Redirects::instance()->create( array(
-			'source_url'  => (string) ( $_POST['source_url'] ?? '' ),
-			'target_url'  => (string) ( $_POST['target_url'] ?? '' ),
+			'source_url'  => (string) wp_unslash( $_POST['source_url'] ?? '' ),
+			'target_url'  => (string) wp_unslash( $_POST['target_url'] ?? '' ),
 			'status_code' => (int) ( $_POST['status_code'] ?? 301 ),
-			'match_type'  => (string) ( $_POST['match_type'] ?? 'exact' ),
-			'notes'       => (string) ( $_POST['notes'] ?? '' ),
+			'match_type'  => (string) wp_unslash( $_POST['match_type'] ?? 'exact' ),
+			'notes'       => (string) wp_unslash( $_POST['notes'] ?? '' ),
 		) );
 		self::redirect_back( 'plseo-redirects', $id ? 'created' : 'failed' );
 	}
@@ -90,8 +90,8 @@ final class PLSEO_Admin_Actions {
 		check_admin_referer( 'plseo_404_promote_' . $id );
 		self::require_cap();
 		$created = PLSEO_Redirects::instance()->create( array(
-			'source_url'  => (string) ( $_POST['source_url'] ?? '' ),
-			'target_url'  => (string) ( $_POST['target_url'] ?? '' ),
+			'source_url'  => (string) wp_unslash( $_POST['source_url'] ?? '' ),
+			'target_url'  => (string) wp_unslash( $_POST['target_url'] ?? '' ),
 			'status_code' => 301,
 			'match_type'  => 'exact',
 			'notes'       => __( 'Promoted from 404 log', 'perrylabs-seo' ),

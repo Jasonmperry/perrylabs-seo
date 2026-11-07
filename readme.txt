@@ -2,9 +2,9 @@
 Contributors: perrylabs
 Tags: seo, aeo, schema, sitemap, redirects, llms.txt, indexnow, ai crawlers, json-ld, e-e-a-t
 Requires at least: 6.0
-Tested up to: 6.5
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.8.0
+Stable tag: 2.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -94,6 +94,11 @@ Yes — having two sitemaps that disagree is worse than either. We filter `wp_si
 The schema graph builder accepts custom contributors via plseo_register_schema_contributor() — Product, FAQ from ACF, etc. There's no auto-mapping built in for WooCommerce yet (planned for 2.1).
 
 == Changelog ==
+
+= 2.8.1 =
+* Social preview cards: real DM Sans typography, word wrap with shrink-to-fit, decoded HTML entities, large site logo, site name as the front-page headline (ported from the jasonmperry.com deploy, Aug 2026). DM Sans is bundled under the SIL Open Font License (assets/fonts/OFL.txt).
+* Fix: redirect rules, setup-wizard business details and author profile fields no longer pick up stray backslashes (regex redirects with \d etc. now save correctly; names with apostrophes no longer render as O\'Brien).
+* Tested up to WordPress 7.1.
 
 = 2.8.0 =
 Cleanroom + smoke test pass.

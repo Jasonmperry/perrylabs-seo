@@ -24,10 +24,20 @@ final class PLSEO_OG_Image {
 
 	private static ?self $instance = null;
 
-	private const WIDTH    = 1200;
-	private const HEIGHT   = 630;
-	private const PADDING  = 64;
-	private const SUBDIR   = 'plseo-og';
+	private const WIDTH   = 1200;
+	private const HEIGHT  = 630;
+	private const PADDING = 72;
+	private const SUBDIR  = 'plseo-og';
+
+	/**
+	 * Bump to invalidate previously generated cards when the design changes —
+	 * it feeds the filename hash, so old files are simply left behind and
+	 * fresh ones render on next request.
+	 */
+	private const DESIGN_VERSION = '2';
+
+	/** Space reserved on the right for the logo (logo size + gutter). */
+	private const LOGO_SIZE = 240;
 
 	public static function instance(): self {
 		return self::$instance ??= new self();
@@ -62,10 +72,18 @@ final class PLSEO_OG_Image {
 			return $current; // GD not available
 		}
 
-		$title = (string) get_the_title( $post );
+		$title = wp_specialchars_decode( (string) get_the_title( $post ), ENT_QUOTES );
 		if ( '' === $title ) {
 			return $current;
 		}
+
+		// The front page's post title is usually "Home" — the site name makes
+		// a far better card headline there.
+		$front_id = (int) get_option( 'page_on_front' );
+		if ( $front_id && $front_id === (int) $post->ID ) {
+			$title = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+		}
+
 		return $this->get_or_create( (int) $post->ID, $title );
 	}
 
@@ -81,7 +99,7 @@ final class PLSEO_OG_Image {
 			return '';
 		}
 
-		$hash = substr( md5( $title . '|' . get_bloginfo( 'name' ) ), 0, 10 );
+		$hash = substr( md5( self::DESIGN_VERSION . '|' . $title . '|' . get_bloginfo( 'name' ) ), 0, 10 );
 		$file = $post_id . '-' . $hash . '.png';
 		$path = trailingslashit( $dir ) . $file;
 
@@ -112,32 +130,66 @@ final class PLSEO_OG_Image {
 
 		imagefilledrectangle( $img, 0, 0, self::WIDTH, self::HEIGHT, $bg );
 
-		// Top-left aqua corner accent bar.
-		imagefilledrectangle( $img, 0, 0, 8, self::HEIGHT, $accent );
+		// Left aqua accent bar.
+		imagefilledrectangle( $img, 0, 0, 10, self::HEIGHT, $accent );
 
-		// Site name in the bottom-left (small caps style).
-		$site = strtoupper( (string) get_bloginfo( 'name' ) );
-		$this->draw_centered_block(
-			$img, $site, $muted, 22,
-			self::PADDING, self::HEIGHT - self::PADDING - 24, self::WIDTH - 2 * self::PADDING,
-			'left'
-		);
+		$bold    = $this->font_path( 'DMSans-Bold.ttf' );
+		$regular = $this->font_path( 'DMSans-Regular.ttf' );
 
-		// Brand line under the site name.
-		$tag = (string) get_bloginfo( 'description' );
-		if ( '' !== $tag ) {
-			$this->draw_centered_block(
-				$img, $tag, $muted, 16,
-				self::PADDING, self::HEIGHT - self::PADDING + 4, self::WIDTH - 2 * self::PADDING,
-				'left'
-			);
+		if ( '' === $bold || ! function_exists( 'imagettftext' ) ) {
+			// FreeType or bundled fonts unavailable — legible bitmap fallback.
+			$this->render_bitmap_fallback( $img, $title, $text, $muted );
+			$ok = imagepng( $img, $path, 6 );
+			imagedestroy( $img );
+			return (bool) $ok;
 		}
 
-		// Title — large, wrapped, top-aligned.
-		$this->draw_wrapped_title(
-			$img, $title, $text, 60,
-			self::PADDING, self::PADDING + 40, self::WIDTH - 2 * self::PADDING
-		);
+		$site = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+		$tag  = wp_specialchars_decode( (string) get_bloginfo( 'description' ), ENT_QUOTES );
+
+		// Big logo, top-right: site icon (or custom logo / bundled logomark).
+		$logo_drawn = $this->draw_logo( $img );
+
+		// Title block: keep clear of the logo when one was drawn.
+		$max_w = self::WIDTH - 2 * self::PADDING;
+		if ( $logo_drawn ) {
+			$max_w -= self::LOGO_SIZE + 48;
+		}
+
+		// Shrink-to-fit: start large, step down until the block fits 3 lines.
+		$size  = 68;
+		$lines = array();
+		do {
+			$lines = $this->wrap_ttf( $title, $bold, $size, $max_w );
+			if ( count( $lines ) <= 3 ) {
+				break;
+			}
+			$size -= 6;
+		} while ( $size >= 40 );
+
+		$line_h  = (int) round( $size * 1.25 );
+		$block_h = count( $lines ) * $line_h;
+
+		// Vertically center the title in the space above the footer.
+		$footer_top = self::HEIGHT - self::PADDING - 64;
+		$y          = max( self::PADDING + $size, (int) ( ( $footer_top - $block_h ) / 2 ) + $size );
+		foreach ( $lines as $line ) {
+			imagettftext( $img, $size, 0, self::PADDING, $y, $text, $bold, $line );
+			$y += $line_h;
+		}
+
+		// Short aqua rule under the title block.
+		imagefilledrectangle( $img, self::PADDING, $y - $line_h + 22, self::PADDING + 72, $y - $line_h + 28, $accent );
+
+		// Footer: site name (aqua) with the tagline under it. When the title
+		// IS the site name (front page), the tagline alone reads better.
+		$fy = self::HEIGHT - self::PADDING;
+		if ( 0 !== strcasecmp( trim( $title ), trim( $site ) ) && '' !== $site ) {
+			imagettftext( $img, 24, 0, self::PADDING, $fy - 38, $accent, $bold, strtoupper( $site ) );
+		}
+		if ( '' !== $tag ) {
+			imagettftext( $img, 20, 0, self::PADDING, $fy, $muted, $regular, $tag );
+		}
 
 		$ok = imagepng( $img, $path, 6 );
 		imagedestroy( $img );
@@ -145,39 +197,114 @@ final class PLSEO_OG_Image {
 	}
 
 	/**
-	 * Word-wrap and draw a multi-line title block at the given anchor.
-	 * Uses GD's bundled font (font index 5) since we can't depend on any
-	 * particular TTF being on the host. Output is legible, not designer-grade —
-	 * which is exactly the right tradeoff for a fallback.
+	 * Composite the site's logo large in the top-right corner.
+	 * Prefers the site icon, then the customizer logo, then the bundled
+	 * PerryLabs logomark. Returns true when something was drawn.
 	 */
-	private function draw_wrapped_title( $img, string $title, int $color, int $font_size, int $x, int $y, int $max_w ): void {
-		// Built-in font 5 is roughly 9px wide × 15px tall. We scale visually by
-		// drawing multiple characters wide — but for true control we'd need TTF.
-		// Use GD's largest built-in font and chunk by chars-per-line.
-		$font     = 5;
-		$char_w   = imagefontwidth( $font );
-		$line_h   = imagefontheight( $font ) + 6;
-		$max_cpl  = max( 10, (int) floor( $max_w / $char_w ) );
-		$wrapped  = wordwrap( $title, $max_cpl, "\n", true );
-		$lines    = explode( "\n", $wrapped );
-		foreach ( $lines as $i => $line ) {
-			imagestring( $img, $font, $x, $y + $i * $line_h, $line, $color );
+	private function draw_logo( $img ): bool {
+		$path = '';
+
+		$icon_id = (int) get_option( 'site_icon' );
+		if ( $icon_id ) {
+			$path = (string) get_attached_file( $icon_id );
 		}
+		if ( '' === $path || ! is_readable( $path ) ) {
+			$logo_id = (int) get_theme_mod( 'custom_logo' );
+			if ( $logo_id ) {
+				$path = (string) get_attached_file( $logo_id );
+			}
+		}
+		if ( '' === $path || ! is_readable( $path ) ) {
+			$bundled = defined( 'PL_SEO_PLUGIN_DIR' )
+				? PL_SEO_PLUGIN_DIR . 'includes/branding/assets/perrylabs-logomark.png'
+				: '';
+			if ( '' !== $bundled && is_readable( $bundled ) ) {
+				$path = $bundled;
+			}
+		}
+		if ( '' === $path || ! is_readable( $path ) ) {
+			return false;
+		}
+
+		$data = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local file
+		if ( false === $data ) {
+			return false;
+		}
+		$logo = @imagecreatefromstring( $data ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- invalid image data is an expected failure mode
+		if ( ! $logo ) {
+			return false;
+		}
+
+		$sw = imagesx( $logo );
+		$sh = imagesy( $logo );
+		if ( $sw < 1 || $sh < 1 ) {
+			imagedestroy( $logo );
+			return false;
+		}
+
+		// Fit inside the LOGO_SIZE box, preserving aspect ratio and alpha.
+		$scale = min( self::LOGO_SIZE / $sw, self::LOGO_SIZE / $sh );
+		$dw    = (int) round( $sw * $scale );
+		$dh    = (int) round( $sh * $scale );
+		$dx    = self::WIDTH - self::PADDING - $dw;
+		$dy    = self::PADDING;
+
+		imagealphablending( $img, true );
+		imagecopyresampled( $img, $logo, $dx, $dy, 0, 0, $dw, $dh, $sw, $sh );
+		imagedestroy( $logo );
+		return true;
 	}
 
 	/**
-	 * Single-line text block (used for the site-name footer).
+	 * Word-wrap a string for a TTF font by measuring real glyph widths.
+	 *
+	 * @return string[] Wrapped lines.
 	 */
-	private function draw_centered_block( $img, string $text, int $color, int $px, int $x, int $y, int $w, string $align ): void {
-		$font   = 4;
-		$char_w = imagefontwidth( $font );
-		$line_w = $char_w * mb_strlen( $text );
-		$start  = $x;
-		if ( 'center' === $align ) {
-			$start = $x + (int) ( ( $w - $line_w ) / 2 );
-		} elseif ( 'right' === $align ) {
-			$start = $x + $w - $line_w;
+	private function wrap_ttf( string $text, string $font, int $size, int $max_w ): array {
+		$words = preg_split( '/\s+/', trim( $text ) ) ?: array();
+		$lines = array();
+		$line  = '';
+		foreach ( $words as $word ) {
+			$candidate = '' === $line ? $word : $line . ' ' . $word;
+			$box       = imagettfbbox( $size, 0, $font, $candidate );
+			$width     = abs( $box[2] - $box[0] );
+			if ( $width > $max_w && '' !== $line ) {
+				$lines[] = $line;
+				$line    = $word;
+			} else {
+				$line = $candidate;
+			}
 		}
-		imagestring( $img, $font, $start, $y, $text, $color );
+		if ( '' !== $line ) {
+			$lines[] = $line;
+		}
+		return $lines;
+	}
+
+	/**
+	 * Absolute path to a bundled font, or '' when missing.
+	 */
+	private function font_path( string $file ): string {
+		if ( ! defined( 'PL_SEO_PLUGIN_DIR' ) ) {
+			return '';
+		}
+		$path = PL_SEO_PLUGIN_DIR . 'assets/fonts/' . $file;
+		return is_readable( $path ) ? $path : '';
+	}
+
+	/**
+	 * Last-resort card using GD's built-in bitmap fonts (no FreeType).
+	 */
+	private function render_bitmap_fallback( $img, string $title, int $text, int $muted ): void {
+		$font    = 5;
+		$char_w  = imagefontwidth( $font );
+		$line_h  = imagefontheight( $font ) + 6;
+		$max_cpl = max( 10, (int) floor( ( self::WIDTH - 2 * self::PADDING ) / $char_w ) );
+		$lines   = explode( "\n", wordwrap( $title, $max_cpl, "\n", true ) );
+		foreach ( $lines as $i => $line ) {
+			imagestring( $img, $font, self::PADDING, self::PADDING + 40 + $i * $line_h, $line, $text );
+		}
+		$site = strtoupper( wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES ) );
+		imagestring( $img, 4, self::PADDING, self::HEIGHT - self::PADDING - 24, $site, $muted );
 	}
 }

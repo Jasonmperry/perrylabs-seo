@@ -82,17 +82,17 @@ final class PLSEO_User_Profile {
 		update_user_meta(
 			$user_id,
 			'plseo_same_as',
-			sanitize_textarea_field( (string) ( $_POST['plseo_same_as'] ?? '' ) )
+			sanitize_textarea_field( (string) wp_unslash( $_POST['plseo_same_as'] ?? '' ) )
 		);
 		update_user_meta(
 			$user_id,
 			'plseo_credentials',
-			sanitize_text_field( (string) ( $_POST['plseo_credentials'] ?? '' ) )
+			sanitize_text_field( (string) wp_unslash( $_POST['plseo_credentials'] ?? '' ) )
 		);
 		update_user_meta(
 			$user_id,
 			'plseo_expertise',
-			sanitize_text_field( (string) ( $_POST['plseo_expertise'] ?? '' ) )
+			sanitize_text_field( (string) wp_unslash( $_POST['plseo_expertise'] ?? '' ) )
 		);
 	}
 }

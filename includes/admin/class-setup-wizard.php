@@ -229,14 +229,14 @@ final class PLSEO_Setup_Wizard {
 		$updates = array();
 		if ( 'business' === $step ) {
 			$updates = array(
-				'business_name'   => sanitize_text_field( (string) ( $_POST['business_name']   ?? '' ) ),
-				'business_type'   => sanitize_text_field( (string) ( $_POST['business_type']   ?? 'Organization' ) ),
-				'business_logo'   => esc_url_raw(        (string) ( $_POST['business_logo']   ?? '' ) ),
-				'twitter_handle'  => sanitize_text_field( (string) ( $_POST['twitter_handle']  ?? '' ) ),
-				'linkedin_url'    => esc_url_raw(        (string) ( $_POST['linkedin_url']    ?? '' ) ),
+				'business_name'   => sanitize_text_field( (string) wp_unslash( $_POST['business_name']   ?? '' ) ),
+				'business_type'   => sanitize_text_field( (string) wp_unslash( $_POST['business_type']   ?? 'Organization' ) ),
+				'business_logo'   => esc_url_raw(        (string) wp_unslash( $_POST['business_logo']   ?? '' ) ),
+				'twitter_handle'  => sanitize_text_field( (string) wp_unslash( $_POST['twitter_handle']  ?? '' ) ),
+				'linkedin_url'    => esc_url_raw(        (string) wp_unslash( $_POST['linkedin_url']    ?? '' ) ),
 			);
 		} elseif ( 'aeo' === $step ) {
-			$profile = sanitize_key( (string) ( $_POST['ai_profile'] ?? 'block_training' ) );
+			$profile = sanitize_key( (string) wp_unslash( $_POST['ai_profile'] ?? 'block_training' ) );
 			$updates['ai_crawlers']           = self::ai_profile_to_matrix( $profile );
 			$updates['llms_txt_enabled']      = ! empty( $_POST['llms_txt_enabled'] );
 			$updates['aeo_faq_autodetect']    = ! empty( $_POST['aeo_faq_autodetect'] );
