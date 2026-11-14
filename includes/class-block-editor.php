@@ -86,6 +86,13 @@ final class PLSEO_Block_Editor {
 	 * as dependencies so they're auto-loaded by the editor.
 	 */
 	public function enqueue_editor_assets(): void {
+		// The SEO panel belongs to the post editor. In the Site Editor (templates,
+		// header, footer) the post editor's stylesheet hides #site-editor and the
+		// screen opens blank, so load nothing there.
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( $screen && 'site-editor' === $screen->base ) {
+			return;
+		}
 		wp_enqueue_script(
 			'plseo-block-editor',
 			PL_SEO_PLUGIN_URL . 'assets/block-editor.js',
@@ -100,7 +107,7 @@ final class PLSEO_Block_Editor {
 		wp_enqueue_style(
 			'plseo-block-editor',
 			PL_SEO_PLUGIN_URL . 'assets/block-editor.css',
-			array( 'wp-edit-post' ),
+			array( 'wp-components' ),
 			PL_SEO_VERSION
 		);
 
