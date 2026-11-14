@@ -69,6 +69,14 @@ final class PLSEO_Meta_Tags {
 			return PLSEO_Template_Resolver::resolve( $tmpl, PLSEO_Template_Resolver::context_for_post( $post ) );
 		}
 
+		// A separate posts page ("Blog") is not the homepage: use that page's own title.
+		$posts_page = self::posts_page();
+		if ( $posts_page ) {
+			$override = (string) plseo_get_post_meta( $posts_page->ID, 'title', '' );
+			$tmpl     = '' !== $override ? $override : (string) PLSEO_Options::get( 'title_template_page', '%post_title% %sep% %site_name%' );
+			return PLSEO_Template_Resolver::resolve( $tmpl, PLSEO_Template_Resolver::context_for_post( $posts_page ) );
+		}
+
 		if ( is_front_page() || is_home() ) {
 			$tmpl = (string) PLSEO_Options::get( 'title_template_home', '%site_name% %sep% %site_tagline%' );
 			return PLSEO_Template_Resolver::resolve( $tmpl );
@@ -105,6 +113,17 @@ final class PLSEO_Meta_Tags {
 			return $this->clip( $this->first_paragraph( $post ) );
 		}
 
+		$posts_page = self::posts_page();
+		if ( $posts_page ) {
+			$override = (string) plseo_get_post_meta( $posts_page->ID, 'description', '' );
+			if ( '' !== $override ) {
+				return $override;
+			}
+			if ( '' !== (string) $posts_page->post_excerpt ) {
+				return $this->clip( (string) $posts_page->post_excerpt );
+			}
+		}
+
 		if ( is_front_page() || is_home() ) {
 			$default = (string) PLSEO_Options::get( 'default_description', '' );
 			return $default !== '' ? $default : (string) get_bloginfo( 'description' );
@@ -128,6 +147,15 @@ final class PLSEO_Meta_Tags {
 		}
 
 		return (string) PLSEO_Options::get( 'default_description', (string) get_bloginfo( 'description' ) );
+	}
+
+	/** The static "posts page" when the blog index is being viewed and is not the front page. */
+	private static function posts_page(): ?\WP_Post {
+		if ( ! is_home() || is_front_page() ) {
+			return null;
+		}
+		$page = get_post( (int) get_option( 'page_for_posts' ) );
+		return $page instanceof \WP_Post ? $page : null;
 	}
 
 	private function first_paragraph( \WP_Post $post ): string {
