@@ -125,6 +125,10 @@ final class PLSEO_Schema_AEO {
 				if ( preg_match( '#<summary[^>]*>(.*?)</summary>(.*)$#is', $inner, $m ) ) {
 					$q = trim( wp_strip_all_tags( $m[1] ) );
 					$a = trim( wp_strip_all_tags( $m[2] ) );
+					// core/details keeps its answer in inner blocks, which innerHTML leaves out.
+					if ( '' === $a && ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) ) {
+						$a = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( implode( ' ', array_map( 'render_block', $block['innerBlocks'] ) ) ) ) );
+					}
 					if ( '' !== $q && '' !== $a ) {
 						$out[] = array( 'q' => $q, 'a' => $a );
 					}
